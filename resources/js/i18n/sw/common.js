@@ -370,7 +370,11 @@ export default {
 'click to view': 'bofya ili kuona',
 'Photo': 'Picha',
 'No file chosen': 'Hakuna faili lililochaguliwa',
-'Current photo uploaded': 'Picha ya sasa iliyopakiwa'
+'Current photo uploaded': 'Picha ya sasa iliyopakiwa',
+'approve': 'Thibitisha', 
+'Reject': 'Kataa',
+'Reason for Rejection': 'sababu ya kukataa',
+
 
 
 
