@@ -111,12 +111,31 @@
             fetchZanIdData(zanId);
         });
 
-        $(document).on('change blur', '#resident_number', function() {
+        $(document).on('change', '#resident_number', function() {
             const zanId = safeTrim($(this).val());
             if (zanId.length >= 9 && /^\d+$/.test(zanId)) {
                 fetchZanIdData(zanId);
             }
         });
+
+        // Unlock fields whenever resident number is manually changed/edited
+        $(document).on('input', '#resident_number', function() {
+            unlockZanIdFields();
+        });
+
+        function lockZanIdFields() {
+            $('#name').prop('readonly', true).addClass('bg-light');
+            $('#date_of_birth').prop('readonly', true).addClass('bg-light');
+            $('#gender').css('pointer-events', 'none').addClass('bg-light').attr('tabindex', '-1');
+        }
+
+        function unlockZanIdFields() {
+            $('#name').prop('readonly', false).removeClass('bg-light');
+            $('#date_of_birth').prop('readonly', false).removeClass('bg-light');
+            $('#gender').css('pointer-events', '').removeClass('bg-light').removeAttr('tabindex');
+            $('#resident_number').removeClass('is-valid is-invalid');
+            $('#residentNumberError').text('');
+        }
 
         function fetchZanIdData(zanId) {
             const $field = $('#resident_number');
@@ -149,17 +168,20 @@
                         if (data.gender) $('#gender').val(data.gender);
                         if (data.date_of_birth) $('#date_of_birth').val(data.date_of_birth);
                         
+                        lockZanIdFields();
                         $field.addClass('is-valid');
                         if (typeof showToast === 'function') {
-                            showToast('success', 'ZANID verified! Personal details auto-filled.');
+                            showToast('success', 'ZANID verified! Personal details auto-filled and locked.');
                         }
                     } else {
+                        unlockZanIdFields();
                         $field.addClass('is-invalid');
                         $error.text(response.message || 'ZANID verification failed.');
                     }
                 },
                 error: function(xhr) {
                     $btn.prop('disabled', false).html(originalBtnHtml);
+                    unlockZanIdFields();
                     const msg = xhr.responseJSON?.message || 'Failed to connect to ZANID verification service.';
                     console.error('[ZANID API Error]', msg, xhr);
                     $field.addClass('is-invalid');
