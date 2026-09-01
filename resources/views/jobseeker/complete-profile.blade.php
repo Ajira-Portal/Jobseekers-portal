@@ -463,8 +463,13 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="resident_number" class="form-label">Resident Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="resident_number" name="resident_number" placeholder="Your Zanzibari Resident Number" required>
-                            <div class="invalid-feedback" id="residentNumberError"></div>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="resident_number" name="resident_number" placeholder="Your Zanzibari Resident Number" required>
+                                <button type="button" class="btn btn-outline-primary" id="btnVerifyZanId">
+                                    <i class="fas fa-id-card me-1"></i> Verify ZANID
+                                </button>
+                            </div>
+                            <div class="invalid-feedback d-block" id="residentNumberError"></div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>

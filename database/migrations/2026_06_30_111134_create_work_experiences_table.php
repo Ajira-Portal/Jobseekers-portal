@@ -30,7 +30,7 @@ return new class extends Migration
             // Dates
             $table->date('start_date');
             $table->date('end_date')->nullable();
-            
+            $table->boolean('is_current')->default(false);
             
             $table->timestamps();
             

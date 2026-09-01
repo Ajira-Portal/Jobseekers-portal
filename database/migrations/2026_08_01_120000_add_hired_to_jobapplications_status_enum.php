@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         // Add hired as an allowed status.
-        DB::statement("ALTER TABLE jobapplications MODIFY COLUMN status ENUM('pending','reviewed','shortlisted','rejected','hired') NOT NULL DEFAULT 'pending'");
+        DB::statement("ALTER TABLE job_applications MODIFY COLUMN status ENUM('pending','reviewed','shortlisted','rejected','hired') NOT NULL DEFAULT 'pending'");
     }
 
     /**
@@ -20,8 +20,8 @@ return new class extends Migration
     public function down(): void
     {
         // Prevent rollback failure if any rows already use hired.
-        DB::statement("UPDATE jobapplications SET status = 'reviewed' WHERE status = 'hired'");
+        DB::statement("UPDATE job_applications SET status = 'reviewed' WHERE status = 'hired'");
 
-        DB::statement("ALTER TABLE jobapplications MODIFY COLUMN status ENUM('pending','reviewed','shortlisted','rejected') NOT NULL DEFAULT 'pending'");
+        DB::statement("ALTER TABLE job_applications MODIFY COLUMN status ENUM('pending','reviewed','shortlisted','rejected') NOT NULL DEFAULT 'pending'");
     }
 };

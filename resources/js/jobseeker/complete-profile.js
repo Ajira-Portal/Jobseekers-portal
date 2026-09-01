@@ -99,6 +99,78 @@
             updateProgress();
         });
 
+        // Global ZANID Auto-fetch and Verify Button Listeners
+        $(document).on('click', '#btnVerifyZanId', function(e) {
+            e.preventDefault();
+            const zanId = safeTrim($('#resident_number').val());
+            if (!zanId) {
+                $('#resident_number').addClass('is-invalid');
+                $('#residentNumberError').text('Please enter your Zanzibari Resident Number.');
+                return;
+            }
+            fetchZanIdData(zanId);
+        });
+
+        $(document).on('change blur', '#resident_number', function() {
+            const zanId = safeTrim($(this).val());
+            if (zanId.length >= 9 && /^\d+$/.test(zanId)) {
+                fetchZanIdData(zanId);
+            }
+        });
+
+        function fetchZanIdData(zanId) {
+            const $field = $('#resident_number');
+            const $error = $('#residentNumberError');
+            const $btn = $('#btnVerifyZanId');
+            const originalBtnHtml = $btn.html();
+
+            $field.removeClass('is-invalid is-valid');
+            $error.text('');
+
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1" role="status"></span> Verifying...');
+
+            $.ajax({
+                url: '/jobseeker/profile/fetch-zanid',
+                type: 'POST',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val(),
+                    resident_number: zanId
+                },
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'Accept': 'application/json'
+                },
+                success: function(response) {
+                    $btn.prop('disabled', false).html(originalBtnHtml);
+                    if (response.success && response.data) {
+                        console.log('[ZANID API Success]', response.data);
+                        const data = response.data;
+                        if (data.name) $('#name').val(data.name);
+                        if (data.gender) $('#gender').val(data.gender);
+                        if (data.date_of_birth) $('#date_of_birth').val(data.date_of_birth);
+                        
+                        $field.addClass('is-valid');
+                        if (typeof showToast === 'function') {
+                            showToast('success', 'ZANID verified! Personal details auto-filled.');
+                        }
+                    } else {
+                        $field.addClass('is-invalid');
+                        $error.text(response.message || 'ZANID verification failed.');
+                    }
+                },
+                error: function(xhr) {
+                    $btn.prop('disabled', false).html(originalBtnHtml);
+                    const msg = xhr.responseJSON?.message || 'Failed to connect to ZANID verification service.';
+                    console.error('[ZANID API Error]', msg, xhr);
+                    $field.addClass('is-invalid');
+                    $error.text(msg);
+                    if (typeof showToast === 'function') {
+                        showToast('error', msg);
+                    }
+                }
+            });
+        }
+
         function updateProgress() {
             const progress = (currentStep / totalSteps) * 100;
             $('#progressFill').css('width', progress + '%');

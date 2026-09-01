@@ -34,5 +34,19 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+     'ajira' => [
+        'url' => env('AJIRA_API_URL'),
+        'zanid_endpoint' => env('AJIRA_ZANID_ENDPOINT'),
+        'token' => env('AJIRA_API_TOKEN'),
+        'timeout' => env('AJIRA_API_TIMEOUT', 30),
+        'connect_timeout' => env('AJIRA_API_CONNECT_TIMEOUT', 10),
+    ],
+
+    'certificate' => [
+        'path' => env('SIGNING_CERTIFICATE_PATH', 'certificate'),
+        'file' => env('SIGNING_CERTIFICATE_FILE'),
+        'password' => env('SIGNING_CERTIFICATE_PASSWORD'),
+        'alias' => env('SIGNING_CERTIFICATE_ALIAS', ''),
+    ],
 
 ];
