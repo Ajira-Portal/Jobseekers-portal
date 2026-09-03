@@ -461,15 +461,16 @@ html {
             <form id="loginForm" action="{{ route('login.post') }}">
                 @csrf
                 <div class="form-group">
-                    <label for="email">Email Address</label>
+                        <label for="zan_id">ZAN ID</label>
                     <div class="input-group">
                         <span class="input-group-text">
-                            <i class="fas fa-envelope"></i>
+                            <i class="fas fa-id-card"></i>
                         </span>
-                        <input type="email" class="form-control" id="email" name="email" 
-                               placeholder="Enter your email" required autofocus>
+                            <input type="text" class="form-control" id="zan_id" name="zan_id"
+                               inputmode="numeric" autocomplete="off"
+                                   placeholder="Enter your ZAN ID" maxlength="12" required autofocus>
                     </div>
-                    <div class="invalid-feedback" id="emailError"></div>
+                        <div class="invalid-feedback" id="zan_idError"></div>
                 </div>
 
                 <div class="form-group">

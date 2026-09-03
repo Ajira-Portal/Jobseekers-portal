@@ -53,7 +53,7 @@
                             showToast('error', 'Please fix the validation errors.');
                         } else if (xhr.status === 401 || xhr.status === 403) {
                             showToast('error', xhr.responseJSON.message);
-                            $('#email').closest('.input-group').addClass('is-invalid');
+                            $('#zan_id').closest('.input-group').addClass('is-invalid');
                             $('#password').closest('.input-group').addClass('is-invalid');
                         } else {
                             showToast('error', 'An error occurred. Please try again.');

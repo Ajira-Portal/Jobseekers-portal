@@ -26,6 +26,17 @@ window.authApi = {
         });
     },
 
+    verifyZanId(url, data) {
+        return $.ajax({
+            url: url,
+            type: 'POST',
+            data: data,
+            headers: {
+                'X-CSRF-TOKEN': authCsrfToken()
+            }
+        });
+    },
+
     forgotPassword(url, data) {
         return $.ajax({
             url: url,

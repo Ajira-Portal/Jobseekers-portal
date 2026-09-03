@@ -35,4 +35,26 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Ajira Zanzibar ID (ZANID) Verification Service
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the Zan ID verification API used to verify
+    | citizens during registration. The endpoint is appended to the base
+    | URL, requests authenticate with a bearer token, and payloads can
+    | optionally be signed with a PKCS#12 certificate.
+    |
+    */
+    'ajira' => [
+        'api_url' => env('AJIRA_API_URL'),
+        'zanid_endpoint' => env('AJIRA_ZANID_ENDPOINT'),
+        'token' => env('AJIRA_API_TOKEN'),
+        'timeout' => (int) env('AJIRA_API_TIMEOUT', 30),
+        'connect_timeout' => (int) env('AJIRA_API_CONNECT_TIMEOUT', 10),
+        'signing_certificate_path' => env('SIGNING_CERTIFICATE_PATH'),
+        'signing_certificate_file' => env('SIGNING_CERTIFICATE_FILE'),
+        'signing_certificate_password' => env('SIGNING_CERTIFICATE_PASSWORD'),
+    ],
+
 ];

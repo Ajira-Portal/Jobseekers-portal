@@ -33,17 +33,51 @@
             </div>
 
             <!-- Register Form -->
-            <form id="registerForm" action="{{ route('register.post') }}" data-login-url="{{ route('login') }}">
+            <form id="registerForm" action="{{ route('register.post') }}" data-login-url="{{ route('login') }}" data-verify-url="{{ route('register.verify-id') }}">
                 @csrf
                 <input type="hidden" name="role" value="jobseeker">
+
+                <!-- Step 1: ZAN ID Verification -->
+                <div class="form-group">
+                    <label for="zan_id">ZAN ID</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-id-card"></i>
+                        </span>
+                           <input type="text" class="form-control" id="zan_id" name="zan_id"
+                               inputmode="numeric" autocomplete="off"
+                               placeholder="Enter your ZAN ID" maxlength="12" required autofocus>
+                        <button class="btn-verify" type="button" id="verifyIdBtn">
+                            <span class="btn-content">
+                                <i class="fas fa-shield-halved"></i>
+                                Verify
+                            </span>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback" id="zan_idError"></div>
+                    <small class="text-muted" style="font-size: 0.7rem;">Your identity will be verified against the Zanzibar ID system.</small>
+                </div>
+
+                <!-- Verified citizen summary -->
+                <div class="verified-banner hidden" id="verifiedBanner">
+                    <i class="fas fa-circle-check"></i>
+                    <div>
+                        <strong id="verifiedName"></strong>
+                        <span id="verifiedMeta"></span>
+                    </div>
+                </div>
+
+                <!-- Step 2: unlocked after verification -->
+                <fieldset id="registrationFields" disabled>
+
                 <div class="form-group">
                     <label for="name">Full Name</label>
                     <div class="input-group">
                         <span class="input-group-text">
                             <i class="fas fa-user"></i>
                         </span>
-                        <input type="text" class="form-control" id="name" name="name" 
-                               placeholder="Enter your full name" required>
+                        <input type="text" class="form-control" id="name" name="name"
+                               placeholder="Auto-filled after ID verification" readonly required>
                     </div>
                     <div class="invalid-feedback" id="nameError"></div>
                 </div>
@@ -115,6 +149,8 @@
                         Create Account
                     </span>
                 </button>
+
+                </fieldset>
 
                 <div class="divider">
                     <span>or</span>

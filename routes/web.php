@@ -63,6 +63,7 @@ Route::middleware(['guest', 'prevent.back.history'])->group(function () {
     Route::get('/reset-password/{token}', [AuthController::class, 'showResetForm'])->name('password.reset');
 
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
+    Route::post('/register/verify-id', [AuthController::class, 'verifyZanId'])->name('register.verify-id');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
     Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');

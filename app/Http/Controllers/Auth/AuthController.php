@@ -3,16 +3,25 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\JobseekerProfile;
 use App\Models\User;
+use App\Services\ZanIdService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    public const ZAN_ID_RULE = 'required|string|regex:/^[0-9]{1,12}$/';
+
+    public function __construct(private ZanIdService $zanIdService)
+    {
+    }
+
     private function redirectAuthenticatedUser()
     {
         if (Auth::check()) {
@@ -58,16 +67,75 @@ class AuthController extends Controller
         return view('auth.reset-password', ['token' => $token]);
     }
 
+    /**
+     * Verify a ZAN ID against the Zan ID system and
+     * return the citizen data used to auto-fill the registration form.
+     */
+    public function verifyZanId(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'zan_id' => self::ZAN_ID_RULE,
+        ], [
+            'zan_id.regex' => 'The ZAN ID must contain only digits (up to 12 digits).'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $zanId = $request->zan_id;
+
+        if (User::where('zan_id', $zanId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'errors' => [
+                    'zan_id' => ['This ZAN ID is already registered. Please sign in instead.']
+                ]
+            ], 422);
+        }
+
+        $result = $this->zanIdService->verify($zanId);
+
+        if (!$result['success']) {
+            $status = $result['status'] === 'not_found' ? 404 : 503;
+
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+                'errors' => [
+                    'zan_id' => [$result['message']]
+                ]
+            ], $status);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $result['message'],
+            'citizen' => [
+                'zan_id' => $result['data']['zan_id'],
+                'name' => $result['data']['name'],
+                'date_of_birth' => $result['data']['date_of_birth'],
+                'gender' => $result['data']['gender'],
+                'phone' => $result['data']['phone'],
+            ]
+        ]);
+    }
+
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'zan_id' => self::ZAN_ID_RULE . '|unique:users,zan_id',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:jobseeker',
-            'company_name' => 'nullable|string|max:255',
+
             'terms' => 'accepted'
         ], [
+            'zan_id.unique' => 'This ZAN ID is already registered. Please sign in instead.',
+            'zan_id.regex' => 'The ZAN ID must contain only digits (up to 12 digits).',
             'terms.accepted' => 'You must agree to the terms and conditions.'
         ]);
 
@@ -78,13 +146,49 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Re-verify the Zan ID server-side so the registered identity
+        // always comes from the Zan ID system, not from form input.
+        $result = $this->zanIdService->verify($request->zan_id);
+
+        if (!$result['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+                'errors' => [
+                    'zan_id' => [$result['message']]
+                ]
+            ], $result['status'] === 'not_found' ? 404 : 503);
+        }
+
+        $citizen = $result['data'];
+
         $user = User::create([
-            'name' => $request->name,
+            'name' => $citizen['name'],
             'email' => $request->email,
+            'zan_id' => $citizen['zan_id'] ?: $request->zan_id,
             'password' => Hash::make($request->password),
             'role' => 'jobseeker', // Default role for new users
-            'company_name' => $request->company_name,
+
+            'phone' => $citizen['phone'],
         ]);
+
+        // Pre-fill the jobseeker profile with the verified identity data.
+        // This step must never fail the registration itself.
+        try {
+            $profile = new JobseekerProfile();
+            $profile->user_id = $user->id;
+            $profile->resident_number = $user->zan_id;
+            $profile->gender = $citizen['gender'] ? strtolower($citizen['gender']) : null;
+            $profile->date_of_birth = $citizen['date_of_birth'];
+            // These columns are NOT NULL in the schema - default to empty strings.
+            $profile->region = '';
+            $profile->district = '';
+            $profile->ward = '';
+            $profile->shehia = '';
+            $profile->save();
+        } catch (\Throwable $e) {
+            Log::warning('Could not pre-fill jobseeker profile after registration: ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
@@ -96,8 +200,10 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'zan_id' => self::ZAN_ID_RULE,
             'password' => 'required|string',
+        ], [
+            'zan_id.regex' => 'The ZAN ID must contain only digits (up to 12 digits).'
         ]);
 
         if ($validator->fails()) {
@@ -107,13 +213,16 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $credentials = [
+            'zan_id' => $request->zan_id,
+            'password' => $request->password,
+        ];
         $remember = $request->has('remember');
 
         if (!Auth::attempt($credentials, $remember)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid email or password.'
+                'message' => 'Invalid ZAN ID or password.'
             ], 401);
         }
 

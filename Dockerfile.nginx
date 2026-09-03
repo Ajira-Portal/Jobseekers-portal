@@ -1,0 +1,11 @@
+FROM nginx:1.27-alpine
+
+WORKDIR /var/www/html
+
+# Nginx only needs Laravel's public directory for static files.
+COPY public ./public
+
+# Apply the Laravel virtual-host configuration.
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
