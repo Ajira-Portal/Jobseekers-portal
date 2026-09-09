@@ -118,38 +118,48 @@ class ZanIdService
      * Sign the request payload with the configured PKCS#12 certificate.
      * Signing is skipped when no certificate has been configured.
      */
-    private function signPayload(string $payload): ?string
-    {
-        $config = config('services.ajira');
+   private function signPayload(string $payload): ?string
+{
+    $config = config('services.ajira');
 
-        $path = trim((string) ($config['signing_certificate_path'] ?? ''), '/\\');
-        $file = (string) ($config['signing_certificate_file'] ?? '');
-        $password = (string) ($config['signing_certificate_password'] ?? '');
+    $path = trim((string) ($config['signing_certificate_path'] ?? ''), '/\\');
+    $file = (string) ($config['signing_certificate_file'] ?? '');
+    $password = (string) ($config['signing_certificate_password'] ?? '');
 
-        if ($path === '' || $file === '') {
-            return null;
-        }
-
-        $certificatePath = $path . DIRECTORY_SEPARATOR . $file;
-
-        if (!is_readable($certificatePath)) {
-            Log::error('ZAN ID signing certificate is not readable: ' . $certificatePath);
-            return null;
-        }
-
-        if (!openssl_pkcs12_read((string) file_get_contents($certificatePath), $certificates, $password)) {
-            Log::error('Unable to read ZAN ID signing certificate (invalid file or password).');
-            return null;
-        }
-
-        $signature = null;
-        if (!openssl_sign($payload, $signature, $certificates['pkey'], OPENSSL_ALGO_SHA256)) {
-            Log::error('Failed to sign ZAN ID API payload.');
-            return null;
-        }
-
-        return base64_encode($signature);
+    if ($path === '' || $file === '') {
+        return null;
     }
+
+    $certificatePath = base_path($path . DIRECTORY_SEPARATOR . $file);
+
+    if (!is_readable($certificatePath)) {
+        Log::error('ZAN ID signing certificate is not readable: ' . $certificatePath);
+        return null;
+    }
+
+    if (!openssl_pkcs12_read(
+        (string) file_get_contents($certificatePath),
+        $certificates,
+        $password
+    )) {
+        Log::error('Unable to read ZAN ID signing certificate (invalid file or password).');
+        return null;
+    }
+
+    $signature = null;
+
+    if (!openssl_sign(
+        $payload,
+        $signature,
+        $certificates['pkey'],
+        OPENSSL_ALGO_SHA256
+    )) {
+        Log::error('Failed to sign ZAN ID API payload.');
+        return null;
+    }
+
+    return base64_encode($signature);
+}
 
     /**
      * Normalize the various possible API response shapes into a single

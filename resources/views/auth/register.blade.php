@@ -168,6 +168,5 @@
 
     <script src="{{asset('js/jquery-3.6.0.min.js')}}"></script>
     <script src="{{asset('js/bootstrap.bundle.min.js')}}"></script>
-     @vite(['resources/js/app.js'])
 </body>
 </html>
