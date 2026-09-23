@@ -82,7 +82,7 @@ class ZanIdService
 
             return $this->result('error', 'Unable to reach the identity verification service. Please try again.');
         }
-
+        dd($request->body());
         if ($response->status() === 404 || $response->status() === 422) {
             return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
         }
