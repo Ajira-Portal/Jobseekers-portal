@@ -21,8 +21,8 @@ class ZanIdService
     {
         $config = config('services.ajira');
 
-        $this->apiUrl = rtrim((string) ($config['api_url'] ?? ''), '/');
-        $this->endpoint = '/' . ltrim((string) ($config['zanid_endpoint'] ?? ''), '/');
+        $this->apiUrl = (string) ($config['api_url'] ?? '');
+        $this->endpoint = (string) ($config['zanid_endpoint'] ?? '');
         $this->token = $config['token'] ?? null;
         $this->timeout = (int) ($config['timeout'] ?? 30) ?: 30;
         $this->connectTimeout = (int) ($config['connect_timeout'] ?? 10) ?: 10;
@@ -38,10 +38,11 @@ class ZanIdService
         }
 
         if (str_starts_with($apiUrl, 'http://') || str_starts_with($apiUrl, 'https://')) {
-            if ($endpoint === '' || $endpoint === '/') {
-                return $apiUrl;
+            $path = ltrim($endpoint, '/');
+            if ($path === '') {
+                return rtrim($apiUrl, '/');
             }
-            return rtrim($apiUrl, '/') . '/' . ltrim($endpoint, '/');
+            return rtrim($apiUrl, '/') . '/' . $path;
         }
 
         return '';
