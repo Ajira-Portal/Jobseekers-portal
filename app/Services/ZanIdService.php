@@ -28,26 +28,46 @@ class ZanIdService
         $this->connectTimeout = (int) ($config['connect_timeout'] ?? 10) ?: 10;
     }
 
+    public function getUrl(): string
+    {
+        $endpoint = trim((string) ($this->endpoint ?? ''));
+        $apiUrl = trim((string) ($this->apiUrl ?? ''));
+
+        if (str_starts_with($endpoint, 'http://') || str_starts_with($endpoint, 'https://')) {
+            return $endpoint;
+        }
+
+        if (str_starts_with($apiUrl, 'http://') || str_starts_with($apiUrl, 'https://')) {
+            if ($endpoint === '' || $endpoint === '/') {
+                return $apiUrl;
+            }
+            return rtrim($apiUrl, '/') . '/' . ltrim($endpoint, '/');
+        }
+
+        return '';
+    }
+
     /**
-    * Verify a ZAN ID and retrieve the citizen's data.
+     * Verify a ZAN ID and retrieve the citizen's data.
      *
      * Returns an array with:
      *  - success (bool)
      *  - status  ('ok' | 'not_found' | 'unconfigured' | 'error')
      *  - message (string, user-presentable)
-    *  - data    (normalized citizen data when success: zan_id, name,
+     *  - data    (normalized citizen data when success: zan_id, name,
      *             date_of_birth, gender, phone, raw)
      */
     public function verify(string $zanId): array
     {
         if (!$this->isConfigured()) {
-            Log::error('ZAN ID service is not configured. Set AJIRA_API_URL, AJIRA_ZANID_ENDPOINT and AJIRA_API_TOKEN.');
+            Log::error('ZAN ID service is not configured. Set AJIRA_API_URL or AJIRA_ZANID_ENDPOINT and AJIRA_API_TOKEN.');
 
             return $this->result('unconfigured', 'Identity verification service is not available at the moment. Please try again later.');
         }
 
         $payload = ['zan_id' => $zanId];
         $body = json_encode($payload);
+        $targetUrl = $this->getUrl();
 
         try {
             $request = Http::withHeaders($this->headers($body))
@@ -56,7 +76,7 @@ class ZanIdService
                 ->connectTimeout($this->connectTimeout)
                 ->acceptJson();
 
-            $response = $request->post($this->apiUrl . $this->endpoint);
+            $response = $request->post($targetUrl);
         } catch (\Throwable $e) {
             Log::error('ZAN ID API connection failed: ' . $e->getMessage());
 
@@ -64,7 +84,7 @@ class ZanIdService
         }
 
         if ($response->status() === 404 || $response->status() === 422) {
-            return $this->result('not_found1', 'No citizen record was found for the provided ZAN ID.');
+            return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
         }
 
         if (!$response->successful()) {
@@ -83,7 +103,7 @@ class ZanIdService
                 'body' => $response->body(),
             ]);
 
-            return $this->result('not_found2', 'No citizen record was found for the provided ZAN ID.');
+            return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
         }
 
         return [
@@ -96,7 +116,7 @@ class ZanIdService
 
     public function isConfigured(): bool
     {
-        return $this->apiUrl !== '' && $this->endpoint !== '/' && !empty($this->token);
+        return $this->getUrl() !== '' && !empty($this->token);
     }
 
     private function headers(string $body): array
