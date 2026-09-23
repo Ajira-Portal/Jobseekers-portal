@@ -51,5 +51,6 @@ return [
         'file' => env('SIGNING_CERTIFICATE_FILE'),
         'password' => env('SIGNING_CERTIFICATE_PASSWORD'),
         'alias' => env('SIGNING_CERTIFICATE_ALIAS', ''),
+        'algo' => env('SIGNING_CERTIFICATE_ALGO', 'sha1'),
     ],
 ];

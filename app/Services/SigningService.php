@@ -14,14 +14,15 @@ class SigningService
     private mixed $privateKey = null;
 
     /**
-     * Sign a string using SHA1withRSA.
+     * Sign a string using configured algorithm (SHA1withRSA or SHA256withRSA).
      *
      * @param  string  $data  The string to sign
+     * @param  int|string|null  $algo  Optional signature algorithm ('sha1' | 'sha256')
      * @return string The Base64 encoded signature
      *
      * @throws SigningException
      */
-    public function sign(string $data): string
+    public function sign(string $data, int|string|null $algo = null): string
     {
         if (empty($data)) {
             throw new SigningException('Data to sign cannot be empty.');
@@ -29,11 +30,24 @@ class SigningService
 
         $privateKey = $this->getPrivateKey();
 
+        if ($algo === null) {
+            $configuredAlgo = strtolower((string) Config::get('services.certificate.algo', 'sha1'));
+            $algo = match ($configuredAlgo) {
+                'sha256' => OPENSSL_ALGO_SHA256,
+                default => OPENSSL_ALGO_SHA1,
+            };
+        } elseif (is_string($algo)) {
+            $algo = match (strtolower($algo)) {
+                'sha256' => OPENSSL_ALGO_SHA256,
+                default => OPENSSL_ALGO_SHA1,
+            };
+        }
+
         $signature = '';
-        $success = openssl_sign($data, $signature, $privateKey, OPENSSL_ALGO_SHA1);
+        $success = openssl_sign($data, $signature, $privateKey, $algo);
 
         if (! $success) {
-            throw new SigningException('Failed to sign data using SHA1withRSA.');
+            throw new SigningException('Failed to sign data using OpenSSL.');
         }
 
         return base64_encode($signature);
