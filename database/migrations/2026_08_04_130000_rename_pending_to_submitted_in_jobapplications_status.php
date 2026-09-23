@@ -10,7 +10,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-<<<<<<< HEAD
         if (DB::getDriverName() === 'sqlite') {
             return;
         }
@@ -25,11 +24,6 @@ return new class extends Migration
         }
 
         DB::statement("ALTER TABLE jobapplications MODIFY COLUMN status ENUM('submitted','reviewed','shortlisted','rejected','hired') NOT NULL DEFAULT 'submitted'");
-=======
-        DB::statement("UPDATE job_applications SET status = 'submitted' WHERE status = 'pending'");
-
-        DB::statement("ALTER TABLE job_applications MODIFY COLUMN status ENUM('submitted','reviewed','shortlisted','rejected','hired') NOT NULL DEFAULT 'submitted'");
->>>>>>> develop
     }
 
     /**
@@ -37,7 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-<<<<<<< HEAD
         if (DB::getDriverName() === 'sqlite') {
             return;
         }
@@ -52,10 +45,5 @@ return new class extends Migration
         }
 
         DB::statement("ALTER TABLE jobapplications MODIFY COLUMN status ENUM('pending','reviewed','shortlisted','rejected','hired') NOT NULL DEFAULT 'pending'");
-=======
-        DB::statement("UPDATE job_applications SET status = 'pending' WHERE status = 'submitted'");
-
-        DB::statement("ALTER TABLE job_applications MODIFY COLUMN status ENUM('pending','reviewed','shortlisted','rejected','hired') NOT NULL DEFAULT 'pending'");
->>>>>>> develop
     }
 };

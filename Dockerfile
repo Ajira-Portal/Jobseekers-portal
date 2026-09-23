@@ -1,6 +1,3 @@
-<<<<<<< Updated upstream
-FROM php:8.4-fpm-alpine AS app
-=======
 # Stage 1: Build Vite frontend assets
 FROM node:24-alpine AS frontend
 
@@ -22,8 +19,7 @@ RUN npm run build
 
 
 # Stage 2: PHP/Laravel application
-FROM php:8.4-fpm-alpine
->>>>>>> Stashed changes
+FROM php:8.4-fpm-alpine AS app
 
 WORKDIR /var/www/html
 
