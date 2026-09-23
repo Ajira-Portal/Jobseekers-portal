@@ -64,7 +64,7 @@ class ZanIdService
         }
 
         if ($response->status() === 404 || $response->status() === 422) {
-            return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
+            return $this->result('not_found1', 'No citizen record was found for the provided ZAN ID.');
         }
 
         if (!$response->successful()) {
@@ -83,7 +83,7 @@ class ZanIdService
                 'body' => $response->body(),
             ]);
 
-            return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
+            return $this->result('not_found2', 'No citizen record was found for the provided ZAN ID.');
         }
 
         return [
