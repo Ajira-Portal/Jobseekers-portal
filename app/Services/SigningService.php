@@ -62,6 +62,10 @@ class SigningService
         $certificatePath = storage_path(trim($path, '/').'/'.ltrim($config['file'], '/'));
 
         if (! File::exists($certificatePath)) {
+            $certificatePath = base_path(trim($path, '/').'/'.ltrim($config['file'], '/'));
+        }
+
+        if (! File::exists($certificatePath)) {
             throw new SigningException('Signing certificate file does not exist.');
         }
 
