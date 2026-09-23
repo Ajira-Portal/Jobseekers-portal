@@ -97,19 +97,30 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // $result = $this->zanIdService->verify($zanId);
+
+        // if (!$result['success']) {
+        //     $status = $result['status'] === 'not_found' ? 404 : 503;
+
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => $result['message'],
+        //         'errors' => [
+        //             'zan_id' => [$result['message']]
+        //         ]
+        //     ], $status);
+        // }
+
         $result = $this->zanIdService->verify($zanId);
 
-        if (!$result['success']) {
-            $status = $result['status'] === 'not_found' ? 404 : 503;
-
-            return response()->json([
-                'success' => false,
-                'message' => $result['message'],
-                'errors' => [
-                    'zan_id' => [$result['message']]
-                ]
-            ], $status);
-        }
+                if (!$result['success']) {
+                    return response()->json([
+                        'success' => false,
+                        'status' => $result['status'],
+                        'message' => $result['message'],
+                        'result' => $result,
+                    ], 200);
+                }
 
         return response()->json([
             'success' => true,

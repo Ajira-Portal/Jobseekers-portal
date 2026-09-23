@@ -1,17 +1,44 @@
+<<<<<<< Updated upstream
 FROM php:8.4-fpm-alpine AS app
+=======
+# Stage 1: Build Vite frontend assets
+FROM node:24-alpine AS frontend
 
 WORKDIR /var/www/html
 
-# Install runtime libraries and build dependencies for PHP extensions.
+# Copy package files first for caching
+COPY package*.json ./
+
+# Install Node dependencies
+RUN npm ci
+
+# Copy files required for Vite
+COPY resources ./resources
+COPY vite.config.* ./
+COPY public ./public
+
+# Build Vite assets
+RUN npm run build
+
+
+# Stage 2: PHP/Laravel application
+FROM php:8.4-fpm-alpine
+>>>>>>> Stashed changes
+
+WORKDIR /var/www/html
+
+# Install runtime libraries and build dependencies for PHP extensions
 RUN apk add --no-cache \
         icu-libs \
         libzip \
         oniguruma \
+        postgresql-client \
     && apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
         icu-dev \
         libzip-dev \
         oniguruma-dev \
+        postgresql-dev \
         linux-headers \
     && docker-php-ext-install -j"$(nproc)" \
         intl \
@@ -22,10 +49,10 @@ RUN apk add --no-cache \
         zip \
     && apk del .build-deps
 
-# Copy Composer from the official Composer image.
+# Copy Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Install PHP dependencies first to take advantage of Docker layer caching.
+# Install PHP dependencies
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -33,17 +60,26 @@ RUN composer install \
         --no-interaction \
         --no-progress \
         --prefer-dist \
+        --no-scripts \
         --optimize-autoloader
 
-# Copy application source files.
+# Copy Laravel application
 COPY --chown=www-data:www-data . .
 
-# Ensure common Laravel writable directories have the correct permissions.
+# Copy the ONE Vite build created in Stage 1
+COPY --from=frontend --chown=www-data:www-data \
+    /var/www/html/public/build \
+    /var/www/html/public/build
+
+# Laravel package discovery
+RUN php artisan package:discover --ansi
+
+# Create writable Laravel directories
 RUN mkdir -p storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Basic PHP production configuration.
+# Production PHP configuration
 RUN { \
         echo 'memory_limit=256M'; \
         echo 'upload_max_filesize=20M'; \
@@ -60,18 +96,3 @@ USER www-data
 EXPOSE 9000
 
 CMD ["php-fpm"]
-
-FROM nginx:1.27-alpine
-
-WORKDIR /var/www/html
-
-# Nginx only needs Laravel's public directory for static files.
-COPY public ./public
-
-# Apply the Laravel virtual-host configuration.
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
-
