@@ -24,7 +24,7 @@ class WorkExperience extends Model
         'description',
         'start_date',
         'end_date',
-        
+        'is_current',
     ];
 
     /**

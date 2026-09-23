@@ -12,6 +12,9 @@ use App\Models\Region;
 use App\Models\District;
 use App\Models\Ward;
 use App\Models\Shehia;
+use App\Services\AjiraApiClient;
+use App\Services\SigningService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +97,115 @@ class ProfileController extends Controller
             'workExperiences',
             'stats'
         ));
+    }
+
+    /**
+     * Fetch resident details by ZANID using SigningService and AjiraApiClient
+     */
+    public function fetchZanId(Request $request, SigningService $signingService, AjiraApiClient $ajiraApiClient)
+    {
+        $validator = Validator::make($request->all(), [
+            'resident_number' => 'required|string|regex:/^[0-9]{9,}$/',
+        ], [
+            'resident_number.regex' => 'The ZANID Number must contain only numbers and be at least 9 digits long.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $zanId = $request->input('resident_number');
+        $apiKey = config('services.ajira.token');
+        $innerPayload = [
+            'apiKey' => $apiKey,
+            'zanid' => $zanId,
+        ];
+        $innerPayloadJson = json_encode($innerPayload);
+
+        try {
+            $signature = $signingService->sign($innerPayloadJson);
+            $finalRequest = [
+                'payload' => $innerPayload,
+                'signature' => $signature,
+            ];
+            Log::info('ZANID Payload: ' . json_encode($finalRequest));
+        } catch (\Exception $e) {
+            Log::error('ZANID Payload Signing Error: ' . $e->getMessage(), ['zanid' => $zanId]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal configuration error: Unable to securely sign the payload.',
+            ], 500);
+        }
+
+        try {
+            $apiData = $ajiraApiClient->getZanID($finalRequest);
+            $payloadObj = $apiData['payload'] ?? null;
+
+            if ($payloadObj && isset($payloadObj['code'])) {
+                $code = $payloadObj['code'];
+                $msg = $payloadObj['msg'] ?? 'Unknown Error';
+
+                if ($code === 9000 && !empty($payloadObj['data'])) {
+                    $data = $payloadObj['data'];
+
+                    $firstName = $data['PRSN_FIRST_NAME'] ?? '';
+                    $middleName = $data['PRSN_MIDLE_NAME'] ?? '';
+                    $lastName = $data['PRSN_LAST_NAME'] ?? '';
+                    $fullName = trim("{$firstName} {$middleName} {$lastName}");
+
+                    $gender = (strtoupper($data['PRSN_SEX'] ?? '') === 'FEMALE') ? 'female' : 'male';
+                    $dob = null;
+                    if (!empty($data['PRSN_BIRTH_DATE'])) {
+                        try {
+                            $dob = Carbon::createFromFormat('j-n-Y', $data['PRSN_BIRTH_DATE'])->format('Y-m-d');
+                        } catch (\Exception $e) {
+                            $dob = null;
+                        }
+                    }
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'ZANID details retrieved successfully.',
+                        'data' => [
+                            'resident_number' => $zanId,
+                            'name' => $fullName,
+                            'gender' => $gender,
+                            'date_of_birth' => $dob,
+                            'region_of_birth' => $data['PRSN_BIRTH_PLACE'] ?? null,
+                            'district_of_birth' => $data['PRSN_RES_DISTRICT'] ?? null,
+                            'shehia' => $data['PRSN_PLACE_SHEHIA'] ?? null,
+                            'nationality' => $data['PRSN_NATIONALITY_IND'] ?? 'Tanzanian',
+                            'raw' => $data,
+                        ],
+                    ]);
+                } elseif ($code === 9003) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ZANID Not Found. Please check the number and try again.',
+                    ], 404);
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'ZANID verification service returned an error: ' . $msg,
+                    ], 400);
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid response format from ZANID service.',
+            ], 500);
+
+        } catch (\Exception $e) {
+            Log::error('ZANID API Exception: ' . $e->getMessage(), ['zanid' => $zanId]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to connect to ZANID service. Please try again later.',
+            ], 500);
+        }
     }
 
     /**

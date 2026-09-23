@@ -219,6 +219,26 @@ class AuthController extends Controller
         ];
         $remember = $request->has('remember');
 
+        if (filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
+            $credentials = ['email' => $loginInput, 'password' => $password];
+        } else {
+            // Find user by ZANID (resident_number) in JobseekerProfile or PersonalInfo
+            $user = User::whereHas('jobseekerProfile', function ($query) use ($loginInput) {
+                $query->where('resident_number', $loginInput);
+            })->orWhereHas('personalInfo', function ($query) use ($loginInput) {
+                $query->where('resident_number', $loginInput);
+            })->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid email/ZANID or password.'
+                ], 401);
+            }
+
+            $credentials = ['email' => $user->email, 'password' => $password];
+        }
+
         if (!Auth::attempt($credentials, $remember)) {
             return response()->json([
                 'success' => false,

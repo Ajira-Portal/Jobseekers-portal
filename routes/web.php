@@ -120,6 +120,7 @@ Route::middleware(['auth', 'prevent.back.history', 'isJobseeker'])->prefix('jobs
     Route::get('/profile/status', [ProfileController::class, 'status'])->name('profile.status');
     Route::get('/profile/resume', [ProfileController::class, 'viewResume'])->name('profile.resume.view');
     Route::get('/profile/profile-image', [ProfileController::class, 'viewProfileImage'])->name('profile.image.view');
+    Route::post('/profile/fetch-zanid', [ProfileController::class, 'fetchZanId'])->name('profile.fetch-zanid');
     
     // AJAX Routes 
     Route::get('/get-districts', [ProfileController::class, 'getDistricts'])->name('get-districts');
