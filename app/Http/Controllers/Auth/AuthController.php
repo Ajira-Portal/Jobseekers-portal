@@ -200,10 +200,10 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'zan_id' => self::ZAN_ID_RULE,
+            'zan_id' => 'required|string',
             'password' => 'required|string',
         ], [
-            'zan_id.regex' => 'The ZAN ID must contain only digits (up to 12 digits).'
+            'zan_id.required' => 'Please enter your ZAN ID or Email.',
         ]);
 
         if ($validator->fails()) {
@@ -213,43 +213,32 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $credentials = [
-            'zan_id' => $request->zan_id,
-            'password' => $request->password,
-        ];
+        $input = trim($request->input('zan_id'));
+        $password = $request->input('password');
         $remember = $request->has('remember');
 
-        if (filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
-            $credentials = ['email' => $loginInput, 'password' => $password];
-        } else {
-            // Find user by ZANID (resident_number) in JobseekerProfile or PersonalInfo
-            $user = User::whereHas('jobseekerProfile', function ($query) use ($loginInput) {
-                $query->where('resident_number', $loginInput);
-            })->orWhereHas('personalInfo', function ($query) use ($loginInput) {
-                $query->where('resident_number', $loginInput);
-            })->first();
+        // Search user by zan_id, email, or resident_number in profile
+        $user = User::where('zan_id', $input)
+            ->orWhere('email', $input)
+            ->orWhereHas('jobseekerProfile', function ($query) use ($input) {
+                $query->where('resident_number', $input);
+            })
+            ->orWhereHas('personalInfo', function ($query) use ($input) {
+                $query->where('resident_number', $input);
+            })
+            ->first();
 
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid email/ZANID or password.'
-                ], 401);
-            }
-
-            $credentials = ['email' => $user->email, 'password' => $password];
-        }
-
-        if (!Auth::attempt($credentials, $remember)) {
+        if (!$user || !Hash::check($password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid ZAN ID or password.'
+                'message' => 'Invalid ZAN ID / Email or password.'
             ], 401);
         }
 
+        Auth::login($user, $remember);
+
         // Prevent session fixation by regenerating the session ID after login.
         $request->session()->regenerate();
-
-        $user = Auth::user();
 
         // Check if user is active
         if (!$user->is_active) {
