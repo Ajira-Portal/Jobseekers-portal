@@ -96,8 +96,10 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required|string',
+        ], [
+            'email.required' => 'Please enter your email or ZANID.',
         ]);
 
         if ($validator->fails()) {
@@ -107,13 +109,34 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $loginInput = trim($request->input('email'));
+        $password = $request->input('password');
         $remember = $request->has('remember');
+
+        if (filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
+            $credentials = ['email' => $loginInput, 'password' => $password];
+        } else {
+            // Find user by ZANID (resident_number) in JobseekerProfile or PersonalInfo
+            $user = User::whereHas('jobseekerProfile', function ($query) use ($loginInput) {
+                $query->where('resident_number', $loginInput);
+            })->orWhereHas('personalInfo', function ($query) use ($loginInput) {
+                $query->where('resident_number', $loginInput);
+            })->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid email/ZANID or password.'
+                ], 401);
+            }
+
+            $credentials = ['email' => $user->email, 'password' => $password];
+        }
 
         if (!Auth::attempt($credentials, $remember)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid email or password.'
+                'message' => 'Invalid email/ZANID or password.'
             ], 401);
         }
 

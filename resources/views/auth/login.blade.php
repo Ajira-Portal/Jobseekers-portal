@@ -461,13 +461,13 @@ html {
             <form id="loginForm" action="{{ route('login.post') }}">
                 @csrf
                 <div class="form-group">
-                    <label for="email">Email Address</label>
+                    <label for="email">Email Address or ZANID</label>
                     <div class="input-group">
                         <span class="input-group-text">
-                            <i class="fas fa-envelope"></i>
+                            <i class="fas fa-id-card"></i>
                         </span>
-                        <input type="email" class="form-control" id="email" name="email" 
-                               placeholder="Enter your email" required autofocus>
+                        <input type="text" class="form-control" id="email" name="email" 
+                               placeholder="Enter your email or ZANID" required autofocus>
                     </div>
                     <div class="invalid-feedback" id="emailError"></div>
                 </div>
