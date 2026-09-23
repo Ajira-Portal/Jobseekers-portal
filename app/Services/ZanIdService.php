@@ -66,18 +66,17 @@ class ZanIdService
             return $this->result('unconfigured', 'Identity verification service is not available at the moment. Please try again later.');
         }
 
-        $apiKey = trim((string) ($this->token ?: config('services.ajira.token')));
+        $apiKey = config('services.ajira.token');
         $zanIdClean = trim($zanId);
         $innerPayload = [
             'apiKey' => $apiKey,
             'zanid' => $zanIdClean,
         ];
-        $innerPayloadJson = json_encode($innerPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $innerPayloadJson = json_encode($innerPayload);
 
         try {
             $signingService = app(SigningService::class);
-            $algo = config('services.certificate.algo', 'sha1');
-            $signature = $signingService->sign($innerPayloadJson, $algo);
+            $signature = $signingService->sign($innerPayloadJson);
         } catch (\Throwable $e) {
             Log::error('ZAN ID Payload Signing Error: ' . $e->getMessage(), ['zanid' => $zanId]);
             return $this->result('error', 'Unable to sign verification request payload: ' . $e->getMessage());

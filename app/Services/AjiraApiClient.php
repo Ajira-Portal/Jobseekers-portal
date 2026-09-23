@@ -13,15 +13,19 @@ class AjiraApiClient
 
     public function __construct()
     {
-        $this->baseUrl = rtrim((string) config('services.ajira.url', ''), '/');
+        $url = config('services.ajira.url') ?: config('services.ajira.api_url');
+        $this->baseUrl = rtrim((string) $url, '/');
     }
 
     private function client(): PendingRequest
     {
-        $client = Http::baseUrl($this->baseUrl)
-            ->acceptJson()
+        $client = Http::acceptJson()
             ->timeout((int) config('services.ajira.timeout', 30))
             ->connectTimeout((int) config('services.ajira.connect_timeout', 10));
+
+        if (!empty($this->baseUrl)) {
+            $client->baseUrl($this->baseUrl);
+        }
 
         if ($token = config('services.ajira.token')) {
             $client->withToken($token);
