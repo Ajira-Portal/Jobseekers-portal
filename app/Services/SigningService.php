@@ -77,23 +77,29 @@ class SigningService
 
         $candidates = array_unique([
             base_path($path . '/' . $file),
+            base_path('storage/certificate/' . $file),
+            base_path('certificate/' . $file),
             storage_path($file),
             storage_path($path . '/' . $file),
             storage_path('certificate/' . $file),
-            base_path('storage/certificate/' . $file),
-            base_path('certificate/' . $file),
+            '/var/www/html/storage/certificate/' . $file,
+            '/var/www/html/certificate/' . $file,
         ]);
 
         $certificatePath = null;
+        $checkedPaths = [];
         foreach ($candidates as $candidate) {
-            if (File::exists($candidate)) {
+            $checkedPaths[] = $candidate;
+            if (file_exists($candidate) || File::exists($candidate)) {
                 $certificatePath = $candidate;
                 break;
             }
         }
 
         if (!$certificatePath) {
-            throw new SigningException("Signing certificate file '{$file}' does not exist in path '{$path}' or storage/certificate.");
+            $tried = implode(' | ', $checkedPaths);
+            Log::error("Certificate file '{$file}' not found. Checked paths: {$tried}");
+            throw new SigningException("Signing certificate file '{$file}' does not exist. Checked: {$tried}");
         }
 
         $content = File::get($certificatePath);
