@@ -110,12 +110,23 @@ class AuthController extends Controller
                 'status' => $result['status'],
                 'message' => $result['message'],
             ]);
+            
+            $statusCode = 422;
+            if ($result['status'] === 'not_found') {
+                $statusCode = 404;
+            } elseif ($result['status'] === 'error' || $result['status'] === 'unconfigured') {
+                $statusCode = 500;
+            }
+
             return response()->json([
                 'success' => false,
                 'status' => $result['status'],
                 'message' => $result['message'],
+                'errors' => [
+                    'zan_id' => [$result['message']]
+                ],
                 'result' => $result,
-            ], 200);
+            ], $statusCode);
         }
 
         Log::info('[AuthController] ZAN ID verification successful', ['citizen' => $result['data']]);
