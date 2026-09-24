@@ -77,6 +77,7 @@ class ZanIdService
         try {
             $signingService = app(SigningService::class);
             $signature = $signingService->sign($innerPayloadJson);
+            Log::info('ZAN ID Payload Signature: ' . $signature);
         } catch (\Throwable $e) {
             Log::error('ZAN ID Payload Signing Error: ' . $e->getMessage(), ['zanid' => $zanId]);
             return $this->result('error', 'Unable to sign verification request payload: ' . $e->getMessage());
@@ -86,6 +87,7 @@ class ZanIdService
             'payload' => $innerPayload,
             'signature' => $signature,
         ];
+        Log::info('ZAN ID Final Payload: ' . json_encode($finalPayload));
 
         $targetUrl = $this->getUrl();
 
