@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\SigningException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class SigningService
 {
