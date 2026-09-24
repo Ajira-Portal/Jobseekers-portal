@@ -47,7 +47,7 @@ return [
     ],
 
     'certificate' => [
-        'path' => env('SIGNING_CERTIFICATE_PATH', 'certificate'),
+        'path' => env('SIGNING_CERTIFICATE_PATH', 'storage/certificate'),
         'file' => env('SIGNING_CERTIFICATE_FILE'),
         'password' => env('SIGNING_CERTIFICATE_PASSWORD'),
         'alias' => env('SIGNING_CERTIFICATE_ALIAS', ''),

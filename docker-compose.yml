@@ -16,7 +16,7 @@ services:
     volumes:
       - laravel-storage:/var/www/html/storage
       - vite-build:/var/www/html/public/build
-      - ./certificate:/var/www/html/certificate:ro
+      - ./storage/certificate:/var/www/html/storage/certificate:ro
 
     networks:
       - jobseekers-network
