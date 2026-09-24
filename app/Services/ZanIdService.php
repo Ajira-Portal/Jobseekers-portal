@@ -223,7 +223,7 @@ class ZanIdService
 {
     $config = config('services.ajira');
 
-    $path = trim((string) ($config['signing_certificate_path'] ?? ''), '/\\');
+    $path = (string) ($config['signing_certificate_path'] ?? '');
     $file = (string) ($config['signing_certificate_file'] ?? '');
     $password = (string) ($config['signing_certificate_password'] ?? '');
 
@@ -231,7 +231,11 @@ class ZanIdService
         return null;
     }
 
-    $certificatePath = base_path($path . DIRECTORY_SEPARATOR . $file);
+    if (str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[a-zA-Z]:(\\\|\/)/', $path)) {
+        $certificatePath = rtrim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($file, '/\\');
+    } else {
+        $certificatePath = base_path(trim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($file, '/\\'));
+    }
 
     if (!is_readable($certificatePath)) {
         Log::error('ZAN ID signing certificate is not readable: ' . $certificatePath);

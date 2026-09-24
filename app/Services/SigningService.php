@@ -63,7 +63,13 @@ class SigningService
         }
 
         $path = $config['path'] ?? 'certificate';
-        $certificatePath = storage_path(trim($path, '/').'/'.ltrim($config['file'], '/'));
+        
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[a-zA-Z]:(\\\|\/)/', $path)) {
+            $certificatePath = rtrim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($config['file'], '/\\');
+        } else {
+            $certificatePath = storage_path(trim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($config['file'], '/\\'));
+        }
+        
         Log::info('[SigningService] Resolved certificate path', ['certificatePath' => $certificatePath]);
 
         if (! File::exists($certificatePath)) {
