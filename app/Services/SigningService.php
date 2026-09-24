@@ -73,19 +73,26 @@ class SigningService
             throw new SigningException('Signing certificate configuration is missing.');
         }
 
-        $file = ltrim((string) ($config['file'] ?? ''), '/\\');
-        $path = trim((string) ($config['path'] ?? 'certificate'), '/\\');
+        $file = trim((string) ($config['file'] ?? ''), '/\\');
+        $path = trim((string) ($config['path'] ?? ''), '/\\');
 
-        $candidates = array_unique([
-            base_path($path . '/' . $file),
+        if (empty($file)) {
+            throw new SigningException('Signing certificate file configuration (SIGNING_CERTIFICATE_FILE) is missing in .env.');
+        }
+
+        $candidates = array_values(array_filter(array_unique([
+            $file,
+            $path !== '' ? $path . '/' . $file : null,
+            base_path($file),
+            $path !== '' ? base_path($path . '/' . $file) : null,
             base_path('storage/certificate/' . $file),
             base_path('certificate/' . $file),
             storage_path($file),
-            storage_path($path . '/' . $file),
             storage_path('certificate/' . $file),
             '/var/www/html/storage/certificate/' . $file,
             '/var/www/html/certificate/' . $file,
-        ]);
+            '/var/www/html/' . $file,
+        ])));
 
         $certificatePath = null;
         $checkedPaths = [];
