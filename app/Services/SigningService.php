@@ -72,15 +72,28 @@ class SigningService
             throw new SigningException('Signing certificate configuration is missing.');
         }
 
-        $path = $config['path'] ?? 'certificate';
-        $certificatePath = storage_path(trim($path, '/').'/'.ltrim($config['file'], '/'));
+        $file = ltrim((string) ($config['file'] ?? ''), '/\\');
+        $path = trim((string) ($config['path'] ?? 'certificate'), '/\\');
 
-        if (! File::exists($certificatePath)) {
-            $certificatePath = base_path(trim($path, '/').'/'.ltrim($config['file'], '/'));
+        $candidates = array_unique([
+            base_path($path . '/' . $file),
+            storage_path($file),
+            storage_path($path . '/' . $file),
+            storage_path('certificate/' . $file),
+            base_path('storage/certificate/' . $file),
+            base_path('certificate/' . $file),
+        ]);
+
+        $certificatePath = null;
+        foreach ($candidates as $candidate) {
+            if (File::exists($candidate)) {
+                $certificatePath = $candidate;
+                break;
+            }
         }
 
-        if (! File::exists($certificatePath)) {
-            throw new SigningException('Signing certificate file does not exist.');
+        if (!$certificatePath) {
+            throw new SigningException("Signing certificate file '{$file}' does not exist in path '{$path}' or storage/certificate.");
         }
 
         $content = File::get($certificatePath);
