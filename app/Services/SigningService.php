@@ -68,7 +68,7 @@ class SigningService
 
         $config = Config::get('services.certificate');
 
-        if (empty($config['file']) || empty($config['password']) || empty($config['alias'])) {
+        if (empty($config['file'])) {
             throw new SigningException('Signing certificate configuration is missing.');
         }
 
@@ -83,14 +83,28 @@ class SigningService
             throw new SigningException('Signing certificate file does not exist.');
         }
 
-        $pfxContent = File::get($certificatePath);
+        $content = File::get($certificatePath);
 
-        if ($pfxContent === false) {
+        if ($content === false) {
             throw new SigningException('Unable to read signing certificate file.');
         }
 
+        // If file is already in PEM format (starts with -----BEGIN)
+        if (str_contains($content, '-----BEGIN')) {
+            $privateKey = openssl_pkey_get_private($content, $config['password'] ?? '');
+            if ($privateKey === false) {
+                $privateKey = openssl_pkey_get_private($content);
+            }
+            if ($privateKey === false) {
+                throw new SigningException('Invalid PEM private key or incorrect passphrase.');
+            }
+            $this->privateKey = $privateKey;
+            return $this->privateKey;
+        }
+
+        // PKCS#12 / PFX format
         $certs = [];
-        if (! openssl_pkcs12_read($pfxContent, $certs, $config['password'])) {
+        if (! openssl_pkcs12_read($content, $certs, $config['password'] ?? '')) {
             throw new SigningException('Unable to parse the signing certificate or incorrect password.');
         }
 
