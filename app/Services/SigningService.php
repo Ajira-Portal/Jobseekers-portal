@@ -1,9 +1,5 @@
 <?php
-
-namespace App\Services;
-
 use App\Exceptions\SigningException;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 
@@ -17,8 +13,8 @@ class SigningService
     /**
      * Sign a string using SHA1withRSA.
      *
-     * @param  string  $data  The string to sign
-     * @return string The Base64 encoded signature
+     * @param string $data
+     * @return string Base64 encoded signature
      *
      * @throws SigningException
      */
@@ -31,17 +27,38 @@ class SigningService
         $privateKey = $this->getPrivateKey();
 
         $signature = '';
-        $success = openssl_sign($data, $signature, $privateKey, OPENSSL_ALGO_SHA1);
+
+        $success = openssl_sign(
+            $data,
+            $signature,
+            $privateKey,
+            OPENSSL_ALGO_SHA1
+        );
 
         if (! $success) {
-            throw new SigningException('Failed to sign data using SHA1withRSA.');
+            $error = openssl_error_string();
+
+            Log::error('[SigningService] Failed to sign data', [
+                'openssl_error' => $error,
+            ]);
+
+            throw new SigningException(
+                'Failed to sign data using SHA1withRSA.'
+            );
         }
 
         return base64_encode($signature);
     }
 
     /**
-     * Get the private key from the configured PFX certificate.
+     * Load the private key from:
+     *
+     * storage/certificate/zanidtestprivate.pem
+     *
+     * Configuration:
+     *
+     * SIGNING_CERTIFICATE_PATH=certificate
+     * SIGNING_CERTIFICATE_FILE=zanidtestprivate.pem
      *
      * @return \OpenSSLAsymmetricKey|resource
      *
@@ -49,85 +66,196 @@ class SigningService
      */
     private function getPrivateKey(): mixed
     {
+        // Return cached key if already loaded
         if ($this->privateKey !== null) {
             return $this->privateKey;
         }
 
-        $config = Config::get('services.certificate');
+        /*
+         * Resolve certificate directory relative to Laravel storage.
+         *
+         * storage_path() points to:
+         *
+         * /opt/jobseekers/storage
+         *
+         * Therefore:
+         *
+         * storage_path('certificate')
+         *
+         * becomes:
+         *
+         * /opt/jobseekers/storage/certificate
+         */
+        $certificateDirectory = storage_path(
+            trim(env('SIGNING_CERTIFICATE_PATH', 'certificate'), '/\\')
+        );
 
-        Log::info('[SigningService] Loading private key from certificate config', ['file' => $config['file'] ?? null]);
+        $certificateFile = env(
+            'SIGNING_CERTIFICATE_FILE',
+            'zanidtestprivate.pem'
+        );
 
-        if (empty($config['file'])) {
-            Log::error('[SigningService] Certificate file is not configured.');
-            throw new SigningException('Signing certificate configuration is missing.');
-        }
+        $certificatePath = $certificateDirectory
+            . DIRECTORY_SEPARATOR
+            . $certificateFile;
 
-        $path = $config['path'] ?? 'certificate';
-        
-        if (str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[a-zA-Z]:(\\\|\/)/', $path)) {
-            $certificatePath = rtrim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($config['file'], '/\\');
-        } else {
-            $certificatePath = storage_path(trim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($config['file'], '/\\'));
-        }
-        
-        Log::info('[SigningService] Resolved certificate path', ['certificatePath' => $certificatePath]);
+        Log::info('[SigningService] Loading signing certificate', [
+            'certificate_path' => $certificatePath,
+        ]);
 
+        /*
+         * Check certificate file exists.
+         */
         if (! File::exists($certificatePath)) {
-            Log::error('[SigningService] Certificate file does not exist at: ' . $certificatePath);
-            throw new SigningException('Signing certificate file does not exist.');
+            Log::error(
+                '[SigningService] Certificate file does not exist',
+                [
+                    'certificate_path' => $certificatePath,
+                    'certificate_directory' => $certificateDirectory,
+                    'certificate_file' => $certificateFile,
+                ]
+            );
+
+            throw new SigningException(
+                'Signing certificate file does not exist: '
+                . $certificatePath
+            );
         }
 
+        /*
+         * Read certificate contents.
+         */
         $content = File::get($certificatePath);
 
-        if ($content === false) {
-            Log::error('[SigningService] Unable to read certificate file contents.');
-            throw new SigningException('Unable to read signing certificate file.');
+        if ($content === false || empty($content)) {
+            Log::error(
+                '[SigningService] Unable to read certificate file',
+                [
+                    'certificate_path' => $certificatePath,
+                ]
+            );
+
+            throw new SigningException(
+                'Unable to read signing certificate file.'
+            );
         }
 
-        // PEM Format support (e.g., zanidtestprivate.pem)
-        if (str_contains($content, '-----BEGIN')) {
-            Log::info('[SigningService] Reading certificate in PEM format');
-            $passphrase = $config['password'] ?? '';
-            $privateKey = openssl_pkey_get_private($content, $passphrase);
-            if ($privateKey === false) {
-                // Try without passphrase if failed
-                $privateKey = openssl_pkey_get_private($content);
-            }
+        /*
+         * ==========================================================
+         * PEM PRIVATE KEY
+         * ==========================================================
+         */
+        if (
+            str_contains($content, '-----BEGIN PRIVATE KEY-----') ||
+            str_contains($content, '-----BEGIN RSA PRIVATE KEY-----') ||
+            str_contains($content, '-----BEGIN ENCRYPTED PRIVATE KEY-----')
+        ) {
+            Log::info(
+                '[SigningService] Reading certificate as PEM private key'
+            );
+
+            $passphrase = env(
+                'SIGNING_CERTIFICATE_PASSWORD',
+                ''
+            );
+
+            $privateKey = openssl_pkey_get_private(
+                $content,
+                $passphrase
+            );
 
             if ($privateKey === false) {
-                $err = openssl_error_string();
-                Log::error('[SigningService] Invalid PEM private key or passphrase', ['openssl_error' => $err]);
-                throw new SigningException('Invalid PEM private key or incorrect passphrase.');
+                $error = openssl_error_string();
+
+                Log::error(
+                    '[SigningService] Unable to load PEM private key',
+                    [
+                        'openssl_error' => $error,
+                    ]
+                );
+
+                throw new SigningException(
+                    'Invalid PEM private key or incorrect passphrase.'
+                );
             }
 
-            Log::info('[SigningService] Successfully loaded PEM private key');
+            Log::info(
+                '[SigningService] PEM private key loaded successfully'
+            );
+
             $this->privateKey = $privateKey;
+
             return $this->privateKey;
         }
 
-        // PKCS#12 / PFX Format support
-        Log::info('[SigningService] Reading certificate in PFX format');
+        /*
+         * ==========================================================
+         * PKCS#12 / PFX
+         * ==========================================================
+         */
+        Log::info(
+            '[SigningService] Reading certificate as PKCS#12/PFX'
+        );
+
         $certs = [];
-        if (! openssl_pkcs12_read($content, $certs, $config['password'] ?? '')) {
-            $err = openssl_error_string();
-            Log::error('[SigningService] openssl_pkcs12_read failed', ['openssl_error' => $err]);
-            throw new SigningException('Unable to parse the signing certificate or incorrect password.');
+
+        $password = env(
+            'SIGNING_CERTIFICATE_PASSWORD',
+            ''
+        );
+
+        if (! openssl_pkcs12_read(
+            $content,
+            $certs,
+            $password
+        )) {
+            $error = openssl_error_string();
+
+            Log::error(
+                '[SigningService] Failed to read PFX certificate',
+                [
+                    'openssl_error' => $error,
+                ]
+            );
+
+            throw new SigningException(
+                'Unable to parse the signing certificate or incorrect password.'
+            );
         }
 
         if (empty($certs['pkey'])) {
-            Log::error('[SigningService] No private key found in PFX array');
-            throw new SigningException('Unable to extract private key from the signing certificate.');
+            Log::error(
+                '[SigningService] No private key found in PFX certificate'
+            );
+
+            throw new SigningException(
+                'Unable to extract private key from signing certificate.'
+            );
         }
 
-        $privateKey = openssl_pkey_get_private($certs['pkey']);
+        $privateKey = openssl_pkey_get_private(
+            $certs['pkey']
+        );
 
         if ($privateKey === false) {
-            $err = openssl_error_string();
-            Log::error('[SigningService] Failed openssl_pkey_get_private on extracted PFX key', ['openssl_error' => $err]);
-            throw new SigningException('The extracted private key is invalid.');
+            $error = openssl_error_string();
+
+            Log::error(
+                '[SigningService] Failed to load extracted private key',
+                [
+                    'openssl_error' => $error,
+                ]
+            );
+
+            throw new SigningException(
+                'The extracted private key is invalid.'
+            );
         }
 
-        Log::info('[SigningService] Successfully loaded PFX private key');
+        Log::info(
+            '[SigningService] PFX private key loaded successfully'
+        );
+
         $this->privateKey = $privateKey;
 
         return $this->privateKey;
