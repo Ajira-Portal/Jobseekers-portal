@@ -73,6 +73,8 @@ class AuthController extends Controller
      */
     public function verifyZanId(Request $request)
     {
+        Log::info('[AuthController] verifyZanId endpoint called', ['input' => $request->all()]);
+
         $validator = Validator::make($request->all(), [
             'zan_id' => self::ZAN_ID_RULE,
         ], [
@@ -80,6 +82,7 @@ class AuthController extends Controller
         ]);
 
         if ($validator->fails()) {
+            Log::warning('[AuthController] Validation failed for ZAN ID', ['errors' => $validator->errors()]);
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
@@ -89,6 +92,7 @@ class AuthController extends Controller
         $zanId = $request->zan_id;
 
         if (User::where('zan_id', $zanId)->exists()) {
+            Log::info('[AuthController] ZAN ID is already registered in DB', ['zan_id' => $zanId]);
             return response()->json([
                 'success' => false,
                 'errors' => [
@@ -97,30 +101,24 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // $result = $this->zanIdService->verify($zanId);
-
-        // if (!$result['success']) {
-        //     $status = $result['status'] === 'not_found' ? 404 : 503;
-
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => $result['message'],
-        //         'errors' => [
-        //             'zan_id' => [$result['message']]
-        //         ]
-        //     ], $status);
-        // }
-
+        Log::info('[AuthController] Calling ZanIdService->verify()', ['zan_id' => $zanId]);
         $result = $this->zanIdService->verify($zanId);
+        Log::info('[AuthController] ZanIdService->verify() result', ['result' => $result]);
 
-                if (!$result['success']) {
-                    return response()->json([
-                        'success' => false,
-                        'status' => $result['status'],
-                        'message' => $result['message'],
-                        'result' => $result,
-                    ], 200);
-                }
+        if (!$result['success']) {
+            Log::warning('[AuthController] ZAN ID verification unsuccessful', [
+                'status' => $result['status'],
+                'message' => $result['message'],
+            ]);
+            return response()->json([
+                'success' => false,
+                'status' => $result['status'],
+                'message' => $result['message'],
+                'result' => $result,
+            ], 200);
+        }
+
+        Log::info('[AuthController] ZAN ID verification successful', ['citizen' => $result['data']]);
 
         return response()->json([
             'success' => true,

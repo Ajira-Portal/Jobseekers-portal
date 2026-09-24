@@ -60,8 +60,13 @@ class ZanIdService
      */
     public function verify(string $zanId): array
     {
+        Log::info('[ZanIdService] Verification initiated', ['zanid' => $zanId]);
+
         if (!$this->isConfigured()) {
-            Log::error('ZAN ID service is not configured. Set AJIRA_API_URL or AJIRA_ZANID_ENDPOINT and AJIRA_API_TOKEN.');
+            Log::error('[ZanIdService] Service is not configured. Endpoint or token missing.', [
+                'target_url' => $this->getUrl(),
+                'has_token' => !empty($this->token),
+            ]);
 
             return $this->result('unconfigured', 'Identity verification service is not available at the moment. Please try again later.');
         }
@@ -74,12 +79,14 @@ class ZanIdService
         ];
         $innerPayloadJson = json_encode($innerPayload);
 
+        Log::info('[ZanIdService] Inner payload prepared', ['innerPayloadJson' => $innerPayloadJson]);
+
         try {
             $signingService = app(SigningService::class);
             $signature = $signingService->sign($innerPayloadJson);
-            Log::info('ZAN ID Payload Signature: ' . $signature);
+            Log::info('[ZanIdService] Inner payload signed successfully', ['signature' => $signature]);
         } catch (\Throwable $e) {
-            Log::error('ZAN ID Payload Signing Error: ' . $e->getMessage(), ['zanid' => $zanId]);
+            Log::error('[ZanIdService] Payload Signing Exception: ' . $e->getMessage(), ['zanid' => $zanId, 'trace' => $e->getTraceAsString()]);
             return $this->result('error', 'Unable to sign verification request payload: ' . $e->getMessage());
         }
 
@@ -87,9 +94,13 @@ class ZanIdService
             'payload' => $innerPayload,
             'signature' => $signature,
         ];
-        Log::info('ZAN ID Final Payload: ' . json_encode($finalPayload));
-
         $targetUrl = $this->getUrl();
+
+        Log::info('[ZanIdService] Sending POST request to remote API', [
+            'url' => $targetUrl,
+            'finalPayload' => $finalPayload,
+            'timeout' => $this->timeout,
+        ]);
 
         try {
             $request = Http::timeout($this->timeout)
@@ -99,22 +110,23 @@ class ZanIdService
 
             $response = $request->post($targetUrl, $finalPayload);
         } catch (\Throwable $e) {
-            Log::error('ZAN ID API connection failed: ' . $e->getMessage());
+            Log::error('[ZanIdService] HTTP Request Exception: ' . $e->getMessage(), ['url' => $targetUrl, 'trace' => $e->getTraceAsString()]);
 
             return $this->result('error', 'Unable to reach the identity verification service. Please try again.');
         }
 
-        Log::info('ZAN ID API response', [
+        Log::info('[ZanIdService] Remote API response received', [
             'status' => $response->status(),
             'body' => $response->body(),
         ]);
 
         if ($response->status() === 404) {
+            Log::warning('[ZanIdService] Citizen record not found (HTTP 404)', ['zanid' => $zanId]);
             return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
         }
 
         if (!$response->successful()) {
-            Log::error('ZAN ID API request failed', [
+            Log::error('[ZanIdService] HTTP request failed non-2xx status', [
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
@@ -125,12 +137,17 @@ class ZanIdService
         $apiData = $response->json() ?? [];
         $payloadObj = $apiData['payload'] ?? null;
 
+        Log::info('[ZanIdService] Parsing API response envelope', ['payloadObj' => $payloadObj]);
+
         if ($payloadObj && isset($payloadObj['code'])) {
             $code = (int) $payloadObj['code'];
             $msg = $payloadObj['msg'] ?? 'Unknown Error';
 
+            Log::info('[ZanIdService] Envelope code evaluated', ['code' => $code, 'msg' => $msg]);
+
             if ($code === 9000 && !empty($payloadObj['data'])) {
                 $citizen = $this->normalize($payloadObj['data'], $zanId);
+                Log::info('[ZanIdService] Verification successful (Code 9000)', ['citizen' => $citizen]);
                 return [
                     'success' => true,
                     'status' => 'ok',
@@ -140,30 +157,36 @@ class ZanIdService
             }
 
             if ($code === 9003) {
+                Log::warning('[ZanIdService] Code 9003: Citizen not found', ['msg' => $msg]);
                 return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
             }
 
             if ($code === 9001) {
+                Log::error('[ZanIdService] Code 9001: Signature verification failed on remote server', ['msg' => $msg]);
                 return $this->result('error', 'Digital signature verification failed (9001).');
             }
 
             if ($code === 9002) {
+                Log::error('[ZanIdService] Code 9002: Invalid API Key', ['msg' => $msg]);
                 return $this->result('error', 'Invalid API Key provided (9002).');
             }
 
+            Log::error('[ZanIdService] Unhandled response code', ['code' => $code, 'msg' => $msg]);
             return $this->result('error', "ZAN ID API Error ($code): $msg");
         }
 
         $citizen = $this->normalize($apiData, $zanId);
 
         if (!$citizen || empty($citizen['name'])) {
-            Log::warning('ZAN ID API returned an unexpected payload', [
+            Log::warning('[ZanIdService] Failed to normalize citizen record or missing name', [
                 'body' => $response->body(),
+                'apiData' => $apiData,
             ]);
 
             return $this->result('not_found', 'No citizen record was found for the provided ZAN ID.');
         }
 
+        Log::info('[ZanIdService] Verification successful via direct normalized fallback', ['citizen' => $citizen]);
         return [
             'success' => true,
             'status' => 'ok',
