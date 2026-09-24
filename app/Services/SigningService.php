@@ -53,6 +53,8 @@ class SigningService
             return $this->privateKey;
         }
 
+        $config = Config::get('services.certificate');
+
         Log::info('[SigningService] Loading private key from certificate config', ['file' => $config['file'] ?? null]);
 
         if (empty($config['file'])) {

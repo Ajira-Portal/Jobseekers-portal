@@ -238,12 +238,24 @@ class ZanIdService
         return null;
     }
 
-    if (!openssl_pkcs12_read(
-        (string) file_get_contents($certificatePath),
-        $certificates,
-        $password
-    )) {
-        Log::error('Unable to read ZAN ID signing certificate (invalid file or password).');
+    $content = (string) file_get_contents($certificatePath);
+    $privateKey = false;
+
+    // Check if it's PEM format
+    if (str_contains($content, '-----BEGIN')) {
+        $privateKey = openssl_pkey_get_private($content, $password);
+        if ($privateKey === false) {
+            $privateKey = openssl_pkey_get_private($content);
+        }
+    } else {
+        // Fallback to PFX format
+        if (openssl_pkcs12_read($content, $certificates, $password) && !empty($certificates['pkey'])) {
+            $privateKey = openssl_pkey_get_private($certificates['pkey']);
+        }
+    }
+
+    if ($privateKey === false) {
+        Log::error('Unable to read ZAN ID signing certificate (invalid file format or password).');
         return null;
     }
 
@@ -252,7 +264,7 @@ class ZanIdService
     if (!openssl_sign(
         $payload,
         $signature,
-        $certificates['pkey'],
+        $privateKey,
         OPENSSL_ALGO_SHA256
     )) {
         Log::error('Failed to sign ZAN ID API payload.');
