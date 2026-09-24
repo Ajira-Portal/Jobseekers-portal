@@ -73,41 +73,11 @@ class SigningService
             throw new SigningException('Signing certificate configuration is missing.');
         }
 
-        $file = trim((string) ($config['file'] ?? ''), '/\\');
-        $path = trim((string) ($config['path'] ?? ''), '/\\');
+        $path = $config['path'] ?? 'certificate';
+        $certificatePath = storage_path(trim($path, '/').'/'.ltrim($config['file'], '/'));
 
-        if (empty($file)) {
-            throw new SigningException('Signing certificate file configuration (SIGNING_CERTIFICATE_FILE) is missing in .env.');
-        }
-
-        $candidates = array_values(array_filter(array_unique([
-            $file,
-            $path !== '' ? $path . '/' . $file : null,
-            base_path($file),
-            $path !== '' ? base_path($path . '/' . $file) : null,
-            base_path('storage/certificate/' . $file),
-            base_path('certificate/' . $file),
-            storage_path($file),
-            storage_path('certificate/' . $file),
-            '/var/www/html/storage/certificate/' . $file,
-            '/var/www/html/certificate/' . $file,
-            '/var/www/html/' . $file,
-        ])));
-
-        $certificatePath = null;
-        $checkedPaths = [];
-        foreach ($candidates as $candidate) {
-            $checkedPaths[] = $candidate;
-            if (file_exists($candidate) || File::exists($candidate)) {
-                $certificatePath = $candidate;
-                break;
-            }
-        }
-
-        if (!$certificatePath) {
-            $tried = implode(' | ', $checkedPaths);
-            Log::error("Certificate file '{$file}' not found. Checked paths: {$tried}");
-            throw new SigningException("Signing certificate file '{$file}' does not exist. Checked: {$tried}");
+        if (! File::exists($certificatePath)) {
+            throw new SigningException('Signing certificate file does not exist at: ' . $certificatePath);
         }
 
         $content = File::get($certificatePath);
