@@ -83,7 +83,7 @@ class ZanIdService
 
         try {
             $signingService = app(SigningService::class);
-            $signature = $signingService->sign($innerPayloadJson);
+            $signature = $signingService->sign($innerPayload);
             Log::info('[ZanIdService] Inner payload signed successfully', ['signature' => $signature]);
         } catch (\Throwable $e) {
             Log::error('[ZanIdService] Payload Signing Exception: ' . $e->getMessage(), ['zanid' => $zanId, 'trace' => $e->getTraceAsString()]);

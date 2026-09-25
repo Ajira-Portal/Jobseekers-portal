@@ -35,7 +35,7 @@ class SigningService
             $data,
             $signature,
             $privateKey,
-            OPENSSL_ALGO_SHA256
+            "sha1WithRSAEncryption"
         );
 
         if (! $success) {
