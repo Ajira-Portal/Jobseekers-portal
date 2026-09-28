@@ -17,7 +17,7 @@ class SigningService
      * Sign a string using SHA1withRSA.
      *
      * @param  string  $data  The string to sign
-     * @return string The Base64 encoded signature
+     * @return string  The Base64 encoded signature
      *
      * @throws SigningException
      */
@@ -40,7 +40,7 @@ class SigningService
     }
 
     /**
-     * Get the private key from the configured PFX certificate.
+     * Get the private key from the configured PEM or PFX certificate.
      *
      * @return \OpenSSLAsymmetricKey|resource
      *
@@ -54,36 +54,51 @@ class SigningService
 
         $config = Config::get('services.certificate');
 
-        if (empty($config['file']) || empty($config['password']) || empty($config['alias'])) {
-            throw new SigningException('Signing certificate configuration is missing.');
+        if (empty($config['file'])) {
+            throw new SigningException('Signing certificate file configuration is missing.');
         }
 
         $path = $config['path'] ?? 'certificate';
-        $certificatePath = storage_path(trim($path, '/').'/'.ltrim($config['file'], '/'));
-
-        if (! File::exists($certificatePath)) {
-            throw new SigningException('Signing certificate file does not exist.');
+        
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\') || preg_match('/^[a-zA-Z]:(\\\|\/)/', $path)) {
+            $certificatePath = rtrim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($config['file'], '/\\');
+        } else {
+            $certificatePath = storage_path(trim($path, '/\\') . DIRECTORY_SEPARATOR . ltrim($config['file'], '/\\'));
         }
 
-        $pfxContent = File::get($certificatePath);
+        if (! File::exists($certificatePath)) {
+            throw new SigningException('Signing certificate file does not exist at: ' . $certificatePath);
+        }
 
-        if ($pfxContent === false) {
+        $content = File::get($certificatePath);
+
+        if ($content === false || empty($content)) {
             throw new SigningException('Unable to read signing certificate file.');
         }
 
-        $certs = [];
-        if (! openssl_pkcs12_read($pfxContent, $certs, $config['password'])) {
-            throw new SigningException('Unable to parse the signing certificate or incorrect password.');
-        }
+        $password = $config['password'] ?? '';
+        $privateKey = false;
 
-        if (empty($certs['pkey'])) {
-            throw new SigningException('Unable to extract private key from the signing certificate.');
-        }
+        if (str_contains($content, '-----BEGIN')) {
+            $privateKey = openssl_pkey_get_private($content, $password);
+            if ($privateKey === false) {
+                $privateKey = openssl_pkey_get_private($content);
+            }
+        } else {
+            $certs = [];
+            if (! openssl_pkcs12_read($content, $certs, $password)) {
+                throw new SigningException('Unable to parse the signing certificate or incorrect password.');
+            }
 
-        $privateKey = openssl_pkey_get_private($certs['pkey']);
+            if (empty($certs['pkey'])) {
+                throw new SigningException('Unable to extract private key from the signing certificate.');
+            }
+
+            $privateKey = openssl_pkey_get_private($certs['pkey']);
+        }
 
         if ($privateKey === false) {
-            throw new SigningException('The extracted private key is invalid.');
+            throw new SigningException('The private key is invalid or requires a different password.');
         }
 
         $this->privateKey = $privateKey;
