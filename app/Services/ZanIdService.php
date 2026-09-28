@@ -147,7 +147,15 @@ class ZanIdService
 
             if ($code === 9000 && !empty($payloadObj['data'])) {
                 $citizen = $this->normalize($payloadObj['data'], $zanId);
-                Log::info('[ZanIdService] Verification successful (Code 9000)', ['citizen' => $citizen]);
+                Log::info('[ZanIdService] Verification result after normalize (Code 9000)', ['citizen' => $citizen]);
+
+                if (!$citizen || empty($citizen['name'])) {
+                    Log::warning('[ZanIdService] Code 9000 returned but citizen data could not be normalized', [
+                        'data' => $payloadObj['data'],
+                    ]);
+                    return $this->result('error', 'Unable to parse citizen record from ZAN ID service.');
+                }
+
                 return [
                     'success' => true,
                     'status' => 'ok',
@@ -292,13 +300,13 @@ class ZanIdService
             }
         }
 
-        $name = $this->pick($response, ['full_name', 'fullName', 'name', 'fullname']);
+        $name = $this->pick($response, ['PRSN_FULL_NAME', 'full_name', 'fullName', 'name', 'fullname']);
 
         if (!$name) {
             $parts = array_filter([
-                $this->pick($response, ['first_name', 'firstName', 'fname']),
-                $this->pick($response, ['middle_name', 'middleName', 'mname']),
-                $this->pick($response, ['last_name', 'lastName', 'surname', 'lname']),
+                $this->pick($response, ['PRSN_FIRST_NAME', 'first_name', 'firstName', 'fname']),
+                $this->pick($response, ['PRSN_MIDLE_NAME', 'PRSN_MIDDLE_NAME', 'middle_name', 'middleName', 'mname']),
+                $this->pick($response, ['PRSN_LAST_NAME', 'last_name', 'lastName', 'surname', 'lname']),
             ]);
             $name = $parts ? implode(' ', $parts) : null;
         }
@@ -307,21 +315,21 @@ class ZanIdService
             return null;
         }
 
-        $dateOfBirth = $this->pick($response, ['date_of_birth', 'dateOfBirth', 'dob', 'birth_date', 'birthDate']);
+        $dateOfBirth = $this->pick($response, ['PRSN_BIRTH_DATE', 'date_of_birth', 'dateOfBirth', 'dob', 'birth_date', 'birthDate']);
         $dateOfBirth = $this->normalizeDate($dateOfBirth);
 
-        $gender = $this->pick($response, ['gender', 'sex']);
+        $gender = $this->pick($response, ['PRSN_SEX', 'gender', 'sex']);
         if ($gender) {
             $gender = ucfirst(strtolower($gender));
             $gender = in_array($gender, ['Male', 'Female']) ? $gender : null;
         }
 
         return [
-            'zan_id' => $this->pick($response, ['zan_id', 'zanId', 'national_id', 'nationalId', 'nin', 'resident_number', 'idNumber']) ?: $zanId,
+            'zan_id' => $this->pick($response, ['PRSN_PERSON_ID_NUM', 'PRSN_ID', 'zan_id', 'zanId', 'national_id', 'nationalId', 'nin', 'resident_number', 'idNumber']) ?: $zanId,
             'name' => $name,
             'date_of_birth' => $dateOfBirth,
             'gender' => $gender,
-            'phone' => $this->pick($response, ['phone', 'phone_number', 'phoneNumber', 'mobile', 'msisdn']),
+            'phone' => $this->pick($response, ['PRSN_KIN_PHONE', 'PRSN_PHONE', 'phone', 'phone_number', 'phoneNumber', 'mobile', 'msisdn']),
             'raw' => $response,
         ];
     }

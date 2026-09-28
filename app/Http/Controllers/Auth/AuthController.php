@@ -129,17 +129,29 @@ class AuthController extends Controller
             ], $statusCode);
         }
 
+        if (empty($result['data']) || !is_array($result['data'])) {
+            Log::error('[AuthController] Verification succeeded but citizen data is missing or invalid', ['result' => $result]);
+            return response()->json([
+                'success' => false,
+                'status' => 'error',
+                'message' => 'Unable to retrieve citizen details for the provided ZAN ID.',
+                'errors' => [
+                    'zan_id' => ['Unable to retrieve citizen details for the provided ZAN ID.']
+                ],
+            ], 500);
+        }
+
         Log::info('[AuthController] ZAN ID verification successful', ['citizen' => $result['data']]);
 
         return response()->json([
             'success' => true,
             'message' => $result['message'],
             'citizen' => [
-                'zan_id' => $result['data']['zan_id'],
-                'name' => $result['data']['name'],
-                'date_of_birth' => $result['data']['date_of_birth'],
-                'gender' => $result['data']['gender'],
-                'phone' => $result['data']['phone'],
+                'zan_id' => $result['data']['zan_id'] ?? $zanId,
+                'name' => $result['data']['name'] ?? '',
+                'date_of_birth' => $result['data']['date_of_birth'] ?? null,
+                'gender' => $result['data']['gender'] ?? null,
+                'phone' => $result['data']['phone'] ?? null,
             ]
         ]);
     }
@@ -170,14 +182,15 @@ class AuthController extends Controller
         // always comes from the Zan ID system, not from form input.
         $result = $this->zanIdService->verify($request->zan_id);
 
-        if (!$result['success']) {
+        if (!$result['success'] || empty($result['data']) || !is_array($result['data'])) {
+            $msg = $result['message'] ?? 'Unable to verify ZAN ID.';
             return response()->json([
                 'success' => false,
-                'message' => $result['message'],
+                'message' => $msg,
                 'errors' => [
-                    'zan_id' => [$result['message']]
+                    'zan_id' => [$msg]
                 ]
-            ], $result['status'] === 'not_found' ? 404 : 503);
+            ], ($result['status'] ?? '') === 'not_found' ? 404 : 503);
         }
 
         $citizen = $result['data'];
