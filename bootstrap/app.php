@@ -23,8 +23,19 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
         ]);
 
-        $middleware->alias([
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo(function () {
+            if (auth()->check()) {
+                return match (auth()->user()->role) {
+                    'admin' => route('admin.dashboard'),
+                    'employer' => route('employer.dashboard'),
+                    default => route('jobseeker.dashboard'),
+                };
+            }
+            return route('home');
+        });
 
+        $middleware->alias([
             'isAdmin' => IsAdmin::class,
             'isEmployer' => IsEmployer::class,
             'isJobseeker' => IsJobseeker::class,

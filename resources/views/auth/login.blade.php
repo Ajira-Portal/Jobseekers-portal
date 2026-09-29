@@ -495,10 +495,6 @@ html {
             <!-- Brand -->
            <!-- Brand with Logo -->
 <div class="brand">
-    <div class="mb-2">
-        <h6 class="text-uppercase fw-bold text-dark mb-1" style="font-size: 0.85rem; letter-spacing: 0.5px;">Revolutionary Government of Zanzibar</h6>
-        <p class="text-muted small mb-2" style="font-size: 0.75rem;">Ministry of Youth, Employment and Empowerment</p>
-    </div>
     <a href="{{ url('/') }}" class="logo-container d-inline-block" aria-label="Go to welcome page">
        <img src="{{ asset('images/emblem.png') }}" alt="Logo" class="logo-image" style="height: 65px;">
     </a>
