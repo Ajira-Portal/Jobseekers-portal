@@ -434,9 +434,54 @@ html {
                 align-items: flex-start;
             }
         }
+
+        .top-language-switch {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            z-index: 1200;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .top-language-switch .lang-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 28px;
+            padding: 0 10px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #fff;
+            background: rgba(15, 23, 42, 0.55);
+            transition: all 0.2s ease;
+        }
+
+        .top-language-switch .lang-pill:hover {
+            color: #fff;
+            background: rgba(79, 70, 229, 0.75);
+            border-color: rgba(129, 140, 248, 0.8);
+        }
+
+        .top-language-switch .lang-pill.active {
+            background: linear-gradient(135deg, #4F46E5, #7C3AED);
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
     </style>
 </head>
 <body>
+    <div class="top-language-switch" aria-label="Language switch">
+        <a href="{{ route('language.switch', ['locale' => 'sw']) }}" class="lang-pill {{ app()->getLocale() === 'sw' ? 'active' : '' }}">SW</a>
+        <a href="{{ route('language.switch', ['locale' => 'en']) }}" class="lang-pill {{ app()->getLocale() === 'en' ? 'active' : '' }}">EN</a>
+    </div>
+
     <!-- Animated Background Particles -->
     <div class="particles">
         <div class="particle"></div>
@@ -450,11 +495,15 @@ html {
             <!-- Brand -->
            <!-- Brand with Logo -->
 <div class="brand">
+    <div class="mb-2">
+        <h6 class="text-uppercase fw-bold text-dark mb-1" style="font-size: 0.85rem; letter-spacing: 0.5px;">Revolutionary Government of Zanzibar</h6>
+        <p class="text-muted small mb-2" style="font-size: 0.75rem;">Ministry of Youth, Employment and Empowerment</p>
+    </div>
     <a href="{{ url('/') }}" class="logo-container d-inline-block" aria-label="Go to welcome page">
-       <img src="{{ asset('images/emblem.png') }}" alt="Logo" class="logo-image" >
+       <img src="{{ asset('images/emblem.png') }}" alt="Logo" class="logo-image" style="height: 65px;">
     </a>
-    <h4>Jobseekers Portal<span></span></h4>
-    <p>Sign in to your account</p>
+    <h4 class="mt-2 fw-bold text-dark">Jobseekers Portal<span></span></h4>
+    <p class="text-muted">Sign in to your account</p>
 </div>
 
             <!-- Login Form -->
@@ -517,8 +566,7 @@ html {
     <!-- Toast Container -->
     <div class="toast-container"></div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    @vite(['resources/js/app.js'])
+    <script src="{{asset('js/jquery-3.6.0.min.js')}}"></script>
+    <script src="{{asset('js/bootstrap.bundle.min.js')}}"></script>
 </body>
 </html>
