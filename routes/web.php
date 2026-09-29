@@ -17,11 +17,15 @@ Route::get('/', function () {
     if (auth()->check()) {
         $role = auth()->user()->role;
 
-        return match ($role) {
-            'admin' => redirect()->route('admin.dashboard'),
-            'employer' => redirect()->route('employer.dashboard'),
-            default => redirect()->route('jobseeker.dashboard'),
-        };
+        if ($role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        }
+
+        if ($role === 'employer') {
+            return redirect()->route('employer.dashboard');
+        }
+
+        return app(JobseekerDashboardController::class)->index();
     }
 
     return view('welcome');

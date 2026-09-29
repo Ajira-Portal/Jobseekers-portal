@@ -29,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return match (auth()->user()->role) {
                     'admin' => route('admin.dashboard'),
                     'employer' => route('employer.dashboard'),
-                    default => route('jobseeker.dashboard'),
+                    default => '/',
                 };
             }
             return route('home');

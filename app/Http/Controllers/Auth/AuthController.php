@@ -403,7 +403,7 @@ class AuthController extends Controller
         return match($role) {
             'admin' => '/admin/dashboard',
             'employer' => '/employer/dashboard',
-            default => '/jobseeker/dashboard',
+            default => '/',
         };
     }
 }

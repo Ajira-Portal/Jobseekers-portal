@@ -944,7 +944,7 @@
         }
     </style>
 </head>
-<body data-is-authenticated="{{ auth()->check() ? '1' : '0' }}" data-login-url="{{ route('login') }}" data-jobseeker-dashboard-url="{{ url('/jobseeker/dashboard') }}">
+<body data-is-authenticated="{{ auth()->check() ? '1' : '0' }}" data-login-url="{{ route('login') }}" data-jobseeker-dashboard-url="{{ url('/') }}">
     <div class="top-language-switch" aria-label="Language switch">
         <a href="{{ route('language.switch', ['locale' => 'sw']) }}" class="lang-pill {{ app()->getLocale() === 'sw' ? 'active' : '' }}">SW</a>
         <a href="{{ route('language.switch', ['locale' => 'en']) }}" class="lang-pill {{ app()->getLocale() === 'en' ? 'active' : '' }}">EN</a>
