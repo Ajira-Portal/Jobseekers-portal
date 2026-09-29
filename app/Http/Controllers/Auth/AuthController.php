@@ -178,12 +178,15 @@ class AuthController extends Controller
             ], 422);
         }
 
+        Log::info('[AuthController] Registration initiated', ['zan_id' => $request->zan_id, 'email' => $request->email]);
+
         // Re-verify the Zan ID server-side so the registered identity
         // always comes from the Zan ID system, not from form input.
         $result = $this->zanIdService->verify($request->zan_id);
 
         if (!$result['success'] || empty($result['data']) || !is_array($result['data'])) {
             $msg = $result['message'] ?? 'Unable to verify ZAN ID.';
+            Log::warning('[AuthController] Registration failed: ZAN ID verification unsuccessful', ['result' => $result]);
             return response()->json([
                 'success' => false,
                 'message' => $msg,
@@ -194,40 +197,60 @@ class AuthController extends Controller
         }
 
         $citizen = $result['data'];
+        Log::info('[AuthController] Citizen data verified for registration', ['citizen' => $citizen]);
 
-        $user = User::create([
-            'name' => $citizen['name'],
-            'email' => $request->email,
-            'zan_id' => $citizen['zan_id'] ?: $request->zan_id,
-            'password' => Hash::make($request->password),
-            'role' => 'jobseeker', // Default role for new users
-
-            'phone' => $citizen['phone'],
-        ]);
-
-        // Pre-fill the jobseeker profile with the verified identity data.
-        // This step must never fail the registration itself.
         try {
-            $profile = new JobseekerProfile();
-            $profile->user_id = $user->id;
-            $profile->resident_number = $user->zan_id;
-            $profile->gender = $citizen['gender'] ? strtolower($citizen['gender']) : null;
-            $profile->date_of_birth = $citizen['date_of_birth'];
-            // These columns are NOT NULL in the schema - default to empty strings.
-            $profile->region = '';
-            $profile->district = '';
-            $profile->ward = '';
-            $profile->shehia = '';
-            $profile->save();
-        } catch (\Throwable $e) {
-            Log::warning('Could not pre-fill jobseeker profile after registration: ' . $e->getMessage());
-        }
+            $user = User::create([
+                'name' => $citizen['name'],
+                'email' => $request->email,
+                'zan_id' => $citizen['zan_id'] ?: $request->zan_id,
+                'password' => Hash::make($request->password),
+                'role' => 'jobseeker', // Default role for new users
+                'phone' => $citizen['phone'] ?? null,
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Registration successful! Please sign in to continue.',
-            'redirect' => route('login')
-        ]);
+            Log::info('[AuthController] User created successfully', ['user_id' => $user->id]);
+
+            // Pre-fill the jobseeker profile with the verified identity data.
+            // This step must never fail the registration itself.
+            try {
+                $profile = new JobseekerProfile();
+                $profile->user_id = $user->id;
+                $profile->resident_number = $user->zan_id;
+                $profile->gender = !empty($citizen['gender']) ? strtolower($citizen['gender']) : null;
+                $profile->date_of_birth = $citizen['date_of_birth'] ?? null;
+                // These columns are NOT NULL in the schema - default to empty strings.
+                $profile->region = '';
+                $profile->district = '';
+                $profile->ward = '';
+                $profile->shehia = '';
+                $profile->save();
+                Log::info('[AuthController] JobseekerProfile created successfully', ['profile_id' => $profile->id]);
+            } catch (\Throwable $e) {
+                Log::warning('[AuthController] Could not pre-fill jobseeker profile after registration: ' . $e->getMessage(), [
+                    'exception' => $e,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registration successful! Please sign in to continue.',
+                'redirect' => route('login')
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[AuthController] User creation failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'request' => $request->except(['password', 'password_confirmation']),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration failed: ' . $e->getMessage(),
+                'errors' => [
+                    'general' => [$e->getMessage()]
+                ]
+            ], 500);
+        }
     }
 
     public function login(Request $request)
