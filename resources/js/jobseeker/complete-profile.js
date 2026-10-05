@@ -377,26 +377,27 @@
 
         function saveEducation() {
             const id = $('#edu_id').val();
+            const type = $('#edu_type').length && $('#edu_type').val() ? $('#edu_type').val() : 'university';
             const data = {
+                type: type,
                 institution: fieldValue('#edu_institution'),
-                degree: fieldValue('#edu_degree'),
-                field_of_study: fieldValue('#edu_field'),
+                institution_name: fieldValue('#edu_institution'),
+                school_name: fieldValue('#edu_school_name'),
+                course: fieldValue('#edu_course') || fieldValue('#edu_field'),
+                level: fieldValue('#edu_level') || fieldValue('#edu_degree'),
+                degree: fieldValue('#edu_degree') || fieldValue('#edu_level'),
+                field_of_study: fieldValue('#edu_field') || fieldValue('#edu_course'),
                 description: fieldValue('#edu_description'),
-                start_date: $('#edu_start_date').val(),
-                end_date: $('#edu_end_date').val(),
+                start_date: $('#edu_start_date').val() || $('#edu_university_start_date').val(),
+                end_date: $('#edu_end_date').val() || $('#edu_university_end_date').val(),
                 is_current: $('#edu_is_current').is(':checked')
             };
 
             // Validate
             let valid = true;
-            if (!data.institution) {
+            if (type === 'university' && !data.institution && !data.institution_name) {
                 $('#edu_institution').addClass('is-invalid');
                 $('#edu_institutionError').text('Institution is required.');
-                valid = false;
-            }
-            if (!data.degree) {
-                $('#edu_degree').addClass('is-invalid');
-                $('#edu_degreeError').text('Degree is required.');
                 valid = false;
             }
 

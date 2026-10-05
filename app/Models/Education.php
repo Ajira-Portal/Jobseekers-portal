@@ -19,6 +19,7 @@ class Education extends Model
         'user_id',
         'type',
         'institution_name',
+        'institution',
         'school_name',
         'course',
         'level',
@@ -27,6 +28,16 @@ class Education extends Model
         'end_date',
         'is_current',
     ];
+
+    public function setInstitutionAttribute($value): void
+    {
+        $this->attributes['institution_name'] = $value;
+    }
+
+    public function getInstitutionAttribute(): ?string
+    {
+        return $this->attributes['institution_name'] ?? null;
+    }
 
     /**
      * The attributes that should be cast.
@@ -85,11 +96,11 @@ class Education extends Model
     public function getDurationAttribute(): string
     {
         if ($this->is_current) {
-            return $this->start_date?->format('M Y') . ' - Present';
+            return $this->start_date?->format('M Y').' - Present';
         }
 
         if ($this->start_date && $this->end_date) {
-            return $this->start_date->format('M Y') . ' - ' . $this->end_date->format('M Y');
+            return $this->start_date->format('M Y').' - '.$this->end_date->format('M Y');
         }
 
         return 'N/A';

@@ -444,29 +444,63 @@ class ProfileController extends Controller
      */
     public function storeEducation(Request $request)
     {
-        \Log::info('Store Education Request Data:', $request->all());
-        $validator = Validator::make($request->all(), [
+        Log::info('Store Education Request Data:', $request->all());
+
+        $input = $request->all();
+
+        // Normalize field aliases from legacy or varied JS frontends
+        if (empty($input['type'])) {
+            if (! empty($input['institution']) || ! empty($input['institution_name']) || ! empty($input['course']) || ! empty($input['level']) || ! empty($input['degree'])) {
+                $input['type'] = 'university';
+            } elseif (! empty($input['school_name'])) {
+                $input['type'] = 'secondary';
+            } elseif (! empty($input['description'])) {
+                $input['type'] = 'informal';
+            } else {
+                $input['type'] = 'university';
+            }
+        }
+
+        if (empty($input['institution']) && ! empty($input['institution_name'])) {
+            $input['institution'] = $input['institution_name'];
+        }
+        if (empty($input['institution_name']) && ! empty($input['institution'])) {
+            $input['institution_name'] = $input['institution'];
+        }
+        if (empty($input['level']) && ! empty($input['degree'])) {
+            $input['level'] = $input['degree'];
+        }
+        if (empty($input['course']) && ! empty($input['field_of_study'])) {
+            $input['course'] = $input['field_of_study'];
+        }
+        if (isset($input['start_date']) && $input['start_date'] === '') {
+            $input['start_date'] = null;
+        }
+        if (isset($input['end_date']) && $input['end_date'] === '') {
+            $input['end_date'] = null;
+        }
+
+        $validator = Validator::make($input, [
             'type' => 'required|in:informal,primary,secondary,university',
             'description' => 'nullable|string',
             'school_name' => 'nullable|string|max:255',
             'institution' => 'nullable|string|max:255',
+            'institution_name' => 'nullable|string|max:255',
             'course' => 'nullable|string|max:255',
-            'level' => 'nullable|in:diploma,bachelor,master,phd',
+            'level' => 'nullable|string|max:255',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-
         ]);
 
-        // Conditional validation
         $validator->sometimes('description', 'required|string', function ($input) {
             return $input->type === 'informal';
         });
 
-        $validator->sometimes(['school_name', 'start_date'], 'required', function ($input) {
+        $validator->sometimes(['school_name'], 'required', function ($input) {
             return in_array($input->type, ['primary', 'secondary']);
         });
 
-        $validator->sometimes(['institution', 'course', 'level', 'start_date'], 'required', function ($input) {
+        $validator->sometimes(['course'], 'required', function ($input) {
             return $input->type === 'university';
         });
 
@@ -479,10 +513,17 @@ class ProfileController extends Controller
 
         $education = Education::create([
             'user_id' => Auth::id(),
-            ...$request->all(),
+            'type' => $input['type'],
+            'institution_name' => $input['institution_name'] ?? $input['institution'] ?? null,
+            'school_name' => $input['school_name'] ?? null,
+            'course' => $input['course'] ?? null,
+            'level' => $input['level'] ?? null,
+            'description' => $input['description'] ?? null,
+            'start_date' => $input['start_date'] ?? null,
+            'end_date' => $input['end_date'] ?? null,
+            'is_current' => ! empty($input['is_current']),
         ]);
 
-        // Check profile completion
         $this->checkProfileCompletion(Auth::user());
 
         return response()->json([
@@ -505,13 +546,38 @@ class ProfileController extends Controller
             ], 404);
         }
 
-        $validator = Validator::make($request->all(), [
+        $input = $request->all();
+
+        if (empty($input['type'])) {
+            $input['type'] = $education->type ?? 'university';
+        }
+        if (empty($input['institution']) && ! empty($input['institution_name'])) {
+            $input['institution'] = $input['institution_name'];
+        }
+        if (empty($input['institution_name']) && ! empty($input['institution'])) {
+            $input['institution_name'] = $input['institution'];
+        }
+        if (empty($input['level']) && ! empty($input['degree'])) {
+            $input['level'] = $input['degree'];
+        }
+        if (empty($input['course']) && ! empty($input['field_of_study'])) {
+            $input['course'] = $input['field_of_study'];
+        }
+        if (isset($input['start_date']) && $input['start_date'] === '') {
+            $input['start_date'] = null;
+        }
+        if (isset($input['end_date']) && $input['end_date'] === '') {
+            $input['end_date'] = null;
+        }
+
+        $validator = Validator::make($input, [
             'type' => 'required|in:informal,primary,secondary,university',
             'description' => 'nullable|string',
             'school_name' => 'nullable|string|max:255',
             'institution' => 'nullable|string|max:255',
+            'institution_name' => 'nullable|string|max:255',
             'course' => 'nullable|string|max:255',
-            'level' => 'nullable|in:diploma,bachelor,master,phd',
+            'level' => 'nullable|string|max:255',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'is_current' => 'boolean',
@@ -521,11 +587,11 @@ class ProfileController extends Controller
             return $input->type === 'informal';
         });
 
-        $validator->sometimes(['school_name', 'start_date'], 'required', function ($input) {
+        $validator->sometimes(['school_name'], 'required', function ($input) {
             return in_array($input->type, ['primary', 'secondary']);
         });
 
-        $validator->sometimes(['institution', 'course', 'level', 'start_date'], 'required', function ($input) {
+        $validator->sometimes(['course'], 'required', function ($input) {
             return $input->type === 'university';
         });
 
@@ -536,7 +602,17 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        $education->update($request->all());
+        $education->update([
+            'type' => $input['type'],
+            'institution_name' => $input['institution_name'] ?? $input['institution'] ?? null,
+            'school_name' => $input['school_name'] ?? null,
+            'course' => $input['course'] ?? null,
+            'level' => $input['level'] ?? null,
+            'description' => $input['description'] ?? null,
+            'start_date' => $input['start_date'] ?? null,
+            'end_date' => $input['end_date'] ?? null,
+            'is_current' => ! empty($input['is_current']),
+        ]);
 
         return response()->json([
             'success' => true,
