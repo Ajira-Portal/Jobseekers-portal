@@ -702,25 +702,40 @@ $(document).ready(function() {
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('resident_number', fieldValue('#resident_number'));
-            formData.append('name', fieldValue('#name'));
-            formData.append('phone', fieldValue('#phone'));
-            formData.append('gender', $('#gender').val());
-            formData.append('date_of_birth', $('#date_of_birth').val());
-            formData.append('disability', $('#disability').val());
-            formData.append('disability_description', fieldValue('#disability_description'));
-            formData.append('has_passport', $('#has_passport').val());
-            formData.append('passport_number', fieldValue('#passport_number'));
-            formData.append('passport_expiry_date', $('#passport_expiry_date').val());
-            formData.append('place_of_issue', $('#place_of_issue').val());
-            formData.append('region_id', $('#region').val());
-            formData.append('district_id', $('#district').val());
-            formData.append('ward_id', $('#ward').val());
-            formData.append('shehia_id', $('#shehia').val());
+            const currentValues = {
+                resident_number: fieldValue('#resident_number'),
+                name: fieldValue('#name'),
+                phone: fieldValue('#phone'),
+                gender: $('#gender').val() || '',
+                date_of_birth: $('#date_of_birth').val() || '',
+                disability: $('#disability').val() || 'no',
+                disability_description: fieldValue('#disability_description'),
+                has_passport: $('#has_passport').val() || 'no',
+                passport_number: fieldValue('#passport_number'),
+                passport_expiry_date: $('#passport_expiry_date').val() || '',
+                place_of_issue: $('#place_of_issue').val() || '',
+                region_id: $('#region').val() || '',
+                district_id: $('#district').val() || '',
+                ward_id: $('#ward').val() || '',
+                shehia_id: $('#shehia').val() || ''
+            };
 
-            const resumeFile = $('#resume')[0].files[0];
-            const profileImageFile = $('#profile_image')[0].files[0];
+            const resumeFile = $('#resume')[0] ? $('#resume')[0].files[0] : null;
+            const profileImageFile = $('#profile_image')[0] ? $('#profile_image')[0].files[0] : null;
+
+            // If already saved and no fields/files changed, proceed directly
+            if (window.step1Saved && window.step1Data && !resumeFile && !profileImageFile) {
+                const hasChanged = Object.keys(currentValues).some(key => String(currentValues[key]) !== String(window.step1Data[key] || ''));
+                if (!hasChanged) {
+                    done(true);
+                    return;
+                }
+            }
+
+            const formData = new FormData();
+            Object.keys(currentValues).forEach(key => {
+                formData.append(key, currentValues[key]);
+            });
 
             if (resumeFile) {
                 formData.append('resume', resumeFile);
@@ -737,6 +752,8 @@ $(document).ready(function() {
                 .done(function(response) {
                     saveBtn.prop('disabled', false).html(originalText);
                     if (response.success) {
+                        window.step1Saved = true;
+                        window.step1Data = currentValues;
                         if ($('#profile_image')[0].files[0]) {
                             if (profileImageObjectUrl) {
                                 URL.revokeObjectURL(profileImageObjectUrl);

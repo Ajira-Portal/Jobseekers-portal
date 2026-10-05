@@ -6,22 +6,37 @@ function saveStep1(callback) {
         return;
     }
 
+    const currentValues = {
+        resident_number: ($('#resident_number').val() || '').trim(),
+        name: ($('#name').val() || '').trim(),
+        phone: ($('#phone').val() || '').trim(),
+        gender: $('#gender').val() || '',
+        date_of_birth: $('#date_of_birth').val() || '',
+        disability: $('#disability').val() || 'no',
+        disability_description: ($('#disability_description').val() || '').trim(),
+        region_id: $('#region').val() || '',
+        district_id: $('#district').val() || '',
+        ward_id: $('#ward').val() || '',
+        shehia_id: $('#shehia').val() || ''
+    };
+
+    const resumeFile = $('#resume')[0] ? $('#resume')[0].files[0] : null;
+    const profileImageFile = $('#profile_image')[0] ? $('#profile_image')[0].files[0] : null;
+
+    // Check if step 1 data was already saved and hasn't changed, without new file attachments
+    if (window.step1Saved && window.step1Data && !resumeFile && !profileImageFile) {
+        const hasChanged = Object.keys(currentValues).some(key => String(currentValues[key]) !== String(window.step1Data[key] || ''));
+        if (!hasChanged) {
+            done(true);
+            return;
+        }
+    }
+
     // Get current values
     const formData = new FormData();
-    formData.append('resident_number', $('#resident_number').val().trim());
-    formData.append('name', $('#name').val().trim());
-    formData.append('phone', $('#phone').val().trim());
-    formData.append('gender', $('#gender').val());
-    formData.append('date_of_birth', $('#date_of_birth').val());
-    formData.append('disability', $('#disability').val());
-    formData.append('disability_description', $('#disability_description').val().trim());
-    formData.append('region_id', $('#region').val());
-    formData.append('district_id', $('#district').val());
-    formData.append('ward_id', $('#ward').val());
-    formData.append('shehia_id', $('#shehia').val());
-
-    const resumeFile = $('#resume')[0].files[0];
-    const profileImageFile = $('#profile_image')[0].files[0];
+    Object.keys(currentValues).forEach(key => {
+        formData.append(key, currentValues[key]);
+    });
 
     if (resumeFile) {
         formData.append('resume', resumeFile);
@@ -48,20 +63,8 @@ function saveStep1(callback) {
             saveBtn.prop('disabled', false).html(originalText);
             if (response.success) {
                 showToast('success', response.message || 'General information saved.');
-                // Store the saved data
-                window.step1Data = {
-                    resident_number: $('#resident_number').val(),
-                    name: $('#name').val(),
-                    phone: $('#phone').val(),
-                    gender: $('#gender').val(),
-                    date_of_birth: $('#date_of_birth').val(),
-                    disability: $('#disability').val(),
-                    disability_description: $('#disability_description').val(),
-                    region_id: $('#region').val(),
-                    district_id: $('#district').val(),
-                    ward_id: $('#ward').val(),
-                    shehia_id: $('#shehia').val()
-                };
+                window.step1Saved = true;
+                window.step1Data = currentValues;
                 done(true);
             } else {
                 showToast('error', response.message || 'Unable to save general information.');

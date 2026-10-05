@@ -328,25 +328,30 @@ class ProfileController extends Controller
             Log::info('JobseekerProfile found/created:', ['id' => $profile->id]);
 
             // Update user name
-            $user->name = $request->name;
-            $user->save();
+            if ($request->filled('name')) {
+                $user->name = $request->name;
+                $user->save();
+            }
+
+            $disability = $request->input('disability') ?: ($profile->disability ?? 'no');
+            $hasPassport = $request->input('has_passport') ?: ($profile->has_passport ?? 'no');
 
             // Update jobseeker info
             $updateData = [
-                'resident_number' => $request->resident_number,
-                'phone' => $request->phone,
-                'disability_description' => $request->disability === 'yes' ? $request->disability_description : null,
-                'gender' => $request->gender,
-                'date_of_birth' => $request->date_of_birth,
-                'has_passport' => $request->has_passport,
-                'passport_number' => $request->has_passport === 'yes' ? $request->passport_number : null,
-                'passport_expiry_date' => $request->has_passport === 'yes' ? $request->passport_expiry_date : null,
-                'place_of_issue' => $request->place_of_issue,
-                'region_id' => $request->region_id,
-                'district_id' => $request->district_id,
-                'ward_id' => $request->ward_id,
-                'shehia_id' => $request->shehia_id,
-                'disability' => $request->disability,
+                'resident_number' => $request->input('resident_number') ?: $profile->resident_number,
+                'phone' => $request->input('phone') ?: $profile->phone,
+                'disability' => $disability,
+                'disability_description' => $disability === 'yes' ? $request->input('disability_description') : null,
+                'gender' => $request->input('gender') ?: $profile->gender,
+                'date_of_birth' => $request->input('date_of_birth') ?: $profile->date_of_birth,
+                'has_passport' => $hasPassport,
+                'passport_number' => $hasPassport === 'yes' ? $request->input('passport_number') : null,
+                'passport_expiry_date' => $hasPassport === 'yes' ? $request->input('passport_expiry_date') : null,
+                'place_of_issue' => $request->input('place_of_issue'),
+                'region_id' => $request->input('region_id') ?: $profile->region_id,
+                'district_id' => $request->input('district_id') ?: $profile->district_id,
+                'ward_id' => $request->input('ward_id') ?: $profile->ward_id,
+                'shehia_id' => $request->input('shehia_id') ?: $profile->shehia_id,
             ];
 
             // Handle resume upload
