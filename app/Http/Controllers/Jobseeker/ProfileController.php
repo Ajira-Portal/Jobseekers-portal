@@ -1,20 +1,20 @@
 <?php
 
-
 namespace App\Http\Controllers\Jobseeker;
 
 use App\Http\Controllers\Controller;
-use App\Models\JobseekerProfile;
-use App\Models\Education;
-use App\Models\WorkExperience;
-use App\Models\Skill;
-use App\Models\Region;
 use App\Models\District;
-use App\Models\Ward;
+use App\Models\Education;
+use App\Models\JobseekerProfile;
+use App\Models\Region;
 use App\Models\Shehia;
+use App\Models\Skill;
+use App\Models\Ward;
+use App\Models\WorkExperience;
 use App\Services\AjiraApiClient;
 use App\Services\SigningService;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +37,7 @@ class ProfileController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         // Get or create jobseeker profile
         $profile = JobseekerProfile::firstOrCreate(
             ['user_id' => $user->id],
@@ -131,9 +131,10 @@ class ProfileController extends Controller
                 'payload' => $innerPayload,
                 'signature' => $signature,
             ];
-            Log::info('ZANID Payload: ' . json_encode($finalRequest));
+            Log::info('ZANID Payload: '.json_encode($finalRequest));
         } catch (\Exception $e) {
-            Log::error('ZANID Payload Signing Error: ' . $e->getMessage(), ['zanid' => $zanId]);
+            Log::error('ZANID Payload Signing Error: '.$e->getMessage(), ['zanid' => $zanId]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Internal configuration error: Unable to securely sign the payload.',
@@ -148,7 +149,7 @@ class ProfileController extends Controller
                 $code = $payloadObj['code'];
                 $msg = $payloadObj['msg'] ?? 'Unknown Error';
 
-                if ($code === 9000 && !empty($payloadObj['data'])) {
+                if ($code === 9000 && ! empty($payloadObj['data'])) {
                     $data = $payloadObj['data'];
 
                     $firstName = $data['PRSN_FIRST_NAME'] ?? '';
@@ -158,7 +159,7 @@ class ProfileController extends Controller
 
                     $gender = (strtoupper($data['PRSN_SEX'] ?? '') === 'FEMALE') ? 'female' : 'male';
                     $dob = null;
-                    if (!empty($data['PRSN_BIRTH_DATE'])) {
+                    if (! empty($data['PRSN_BIRTH_DATE'])) {
                         try {
                             $dob = Carbon::createFromFormat('j-n-Y', $data['PRSN_BIRTH_DATE'])->format('Y-m-d');
                         } catch (\Exception $e) {
@@ -189,7 +190,7 @@ class ProfileController extends Controller
                 } else {
                     return response()->json([
                         'success' => false,
-                        'message' => 'ZANID verification service returned an error: ' . $msg,
+                        'message' => 'ZANID verification service returned an error: '.$msg,
                     ], 400);
                 }
             }
@@ -200,7 +201,8 @@ class ProfileController extends Controller
             ], 500);
 
         } catch (\Exception $e) {
-            Log::error('ZANID API Exception: ' . $e->getMessage(), ['zanid' => $zanId]);
+            Log::error('ZANID API Exception: '.$e->getMessage(), ['zanid' => $zanId]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to connect to ZANID service. Please try again later.',
@@ -219,7 +221,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'education' => $educations
+            'education' => $educations,
         ]);
     }
 
@@ -230,20 +232,18 @@ class ProfileController extends Controller
     {
         $education = Education::where('user_id', Auth::id())->find($id);
 
-        if (!$education) {
+        if (! $education) {
             return response()->json([
                 'success' => false,
-                'message' => 'Education record not found.'
+                'message' => 'Education record not found.',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'education' => $education
+            'education' => $education,
         ]);
     }
-
-   
 
     /**
      * Update Step 1: Personal Information
@@ -255,10 +255,10 @@ class ProfileController extends Controller
             Log::info('Request data:', $request->all());
 
             $user = Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
+                    'message' => 'User not authenticated',
                 ], 401);
             }
 
@@ -285,24 +285,25 @@ class ProfileController extends Controller
 
             if ($validator->fails()) {
                 Log::warning('Validation failed:', $validator->errors()->toArray());
+
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
             $passportErrors = [];
             if ($request->has_passport === 'yes') {
-                if (!$request->filled('passport_number')) {
+                if (! $request->filled('passport_number')) {
                     $passportErrors['passport_number'] = ['Passport number is required when passport is available.'];
                 }
 
-                if (!$request->filled('passport_expiry_date')) {
+                if (! $request->filled('passport_expiry_date')) {
                     $passportErrors['passport_expiry_date'] = ['Passport expiry date is required when passport is available.'];
                 }
             }
 
-            if (!empty($passportErrors)) {
+            if (! empty($passportErrors)) {
                 return response()->json([
                     'success' => false,
                     'errors' => $passportErrors,
@@ -316,10 +317,11 @@ class ProfileController extends Controller
                     ['user_id' => $user->id]
                 );
             } catch (\Exception $e) {
-                Log::error('Failed to get/create JobseekerProfile: ' . $e->getMessage());
+                Log::error('Failed to get/create JobseekerProfile: '.$e->getMessage());
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Database error: ' . $e->getMessage()
+                    'message' => 'Database error: '.$e->getMessage(),
                 ], 500);
             }
 
@@ -350,40 +352,53 @@ class ProfileController extends Controller
             // Handle resume upload
             if ($request->hasFile('resume')) {
                 try {
+                    $resumeDisk = config('filesystems.default') === 's3' ? 's3_resume' : 'public';
                     if ($profile->resume) {
-                        Storage::disk('public')->delete('resumes/' . $profile->resume);
-                        @unlink(storage_path('app/private/public/resumes/' . $profile->resume));
+                        try {
+                            Storage::disk($resumeDisk)->delete($profile->resume);
+                            Storage::disk('public')->delete('resumes/'.$profile->resume);
+                            @unlink(storage_path('app/private/public/resumes/'.$profile->resume));
+                        } catch (\Exception $e) {
+                            Log::warning('Could not delete existing resume: '.$e->getMessage());
+                        }
                     }
                     $resume = $request->file('resume');
-                    $resumeName = time() . '_' . $user->id . '_resume.' . $resume->getClientOriginalExtension();
-                    Storage::disk('public')->putFileAs('resumes', $resume, $resumeName);
+                    $resumeName = time().'_'.$user->id.'_resume.'.$resume->getClientOriginalExtension();
+                    if ($resumeDisk === 's3_resume') {
+                        Storage::disk('s3_resume')->putFileAs('', $resume, $resumeName);
+                    } else {
+                        Storage::disk('public')->putFileAs('resumes', $resume, $resumeName);
+                    }
                     $updateData['resume'] = $resumeName;
                 } catch (\Exception $e) {
-                    Log::error('Resume upload error: ' . $e->getMessage());
+                    Log::error('Resume upload error: '.$e->getMessage());
                 }
             }
-        
 
             // Handle profile image upload
             if ($request->hasFile('profile_image')) {
                 try {
+                    $photoDisk = config('filesystems.default') === 's3' ? 's3_profilephoto' : 'public';
                     if ($profile->profile_image) {
-                        Storage::disk('public')->delete('profile_images/' . $profile->profile_image);
-                        @unlink(storage_path('app/private/public/profile_images/' . $profile->profile_image));
+                        try {
+                            Storage::disk($photoDisk)->delete($profile->profile_image);
+                            Storage::disk('public')->delete('profile_images/'.$profile->profile_image);
+                            @unlink(storage_path('app/private/public/profile_images/'.$profile->profile_image));
+                        } catch (\Exception $e) {
+                            Log::warning('Could not delete existing profile image: '.$e->getMessage());
+                        }
                     }
                     $image = $request->file('profile_image');
-                    $imageName = time() . '_' . $user->id . '_profile.' . $image->getClientOriginalExtension();
-                    Storage::disk('public')->putFileAs('profile_images', $image, $imageName);
+                    $imageName = time().'_'.$user->id.'_profile.'.$image->getClientOriginalExtension();
+                    if ($photoDisk === 's3_profilephoto') {
+                        Storage::disk('s3_profilephoto')->putFileAs('', $image, $imageName);
+                    } else {
+                        Storage::disk('public')->putFileAs('profile_images', $image, $imageName);
+                    }
                     $updateData['profile_image'] = $imageName;
-                } 
-
-                    
-                catch (\Exception $e) {
-                    Log::error('Profile image upload error: ' . $e->getMessage());
+                } catch (\Exception $e) {
+                    Log::error('Profile image upload error: '.$e->getMessage());
                 }
-              
-
-                   
             }
 
             // Persist only columns existing in current schema.
@@ -402,32 +417,34 @@ class ProfileController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Personal information saved successfully!',
-                'data' => $profile
+                'data' => $profile,
             ]);
 
-        } catch (\Illuminate\Database\QueryException $e) {
-            Log::error('DATABASE ERROR: ' . $e->getMessage());
-            Log::error('SQL: ' . $e->getSql());
+        } catch (QueryException $e) {
+            Log::error('DATABASE ERROR: '.$e->getMessage());
+            Log::error('SQL: '.$e->getSql());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Database error: ' . $e->getMessage()
+                'message' => 'Database error: '.$e->getMessage(),
             ], 500);
         } catch (\Exception $e) {
-            Log::error('UPDATE PERSONAL INFO ERROR: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+            Log::error('UPDATE PERSONAL INFO ERROR: '.$e->getMessage());
+            Log::error('Stack trace: '.$e->getTraceAsString());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Server error: ' . $e->getMessage()
+                'message' => 'Server error: '.$e->getMessage(),
             ], 500);
         }
     }
+
     /**
      * Store Education (Step 2)
      */
     public function storeEducation(Request $request)
     {
-            \Log::info('Store Education Request Data:', $request->all());
+        \Log::info('Store Education Request Data:', $request->all());
         $validator = Validator::make($request->all(), [
             'type' => 'required|in:informal,primary,secondary,university',
             'description' => 'nullable|string',
@@ -437,7 +454,7 @@ class ProfileController extends Controller
             'level' => 'nullable|in:diploma,bachelor,master,phd',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            
+
         ]);
 
         // Conditional validation
@@ -456,13 +473,13 @@ class ProfileController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $education = Education::create([
             'user_id' => Auth::id(),
-            ...$request->all()
+            ...$request->all(),
         ]);
 
         // Check profile completion
@@ -471,7 +488,7 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Education added successfully!',
-            'education' => $education
+            'education' => $education,
         ]);
     }
 
@@ -481,10 +498,10 @@ class ProfileController extends Controller
     public function updateEducation(Request $request, $id)
     {
         $education = Education::where('user_id', Auth::id())->find($id);
-        if (!$education) {
+        if (! $education) {
             return response()->json([
                 'success' => false,
-                'message' => 'Education record not found.'
+                'message' => 'Education record not found.',
             ], 404);
         }
 
@@ -515,7 +532,7 @@ class ProfileController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -524,7 +541,7 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Education updated successfully!',
-            'education' => $education
+            'education' => $education,
         ]);
     }
 
@@ -534,10 +551,10 @@ class ProfileController extends Controller
     public function deleteEducation($id)
     {
         $education = Education::where('user_id', Auth::id())->find($id);
-        if (!$education) {
+        if (! $education) {
             return response()->json([
                 'success' => false,
-                'message' => 'Education record not found.'
+                'message' => 'Education record not found.',
             ], 404);
         }
 
@@ -548,7 +565,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Education deleted successfully!'
+            'message' => 'Education deleted successfully!',
         ]);
     }
 
@@ -564,7 +581,7 @@ class ProfileController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -576,7 +593,7 @@ class ProfileController extends Controller
             return strcasecmp($skill, $name) === 0;
         });
 
-        if (!$exists) {
+        if (! $exists) {
             $skills[] = $name;
             $this->saveUserSkills(Auth::id(), $skills, $profile);
         }
@@ -587,7 +604,7 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Skill added successfully!',
-            'skills' => implode(', ', $this->getUserSkillsArray(Auth::id(), $profile))
+            'skills' => implode(', ', $this->getUserSkillsArray(Auth::id(), $profile)),
         ]);
     }
 
@@ -620,7 +637,7 @@ class ProfileController extends Controller
                 return strcasecmp($item, $skill) === 0;
             });
 
-            if (!$exists) {
+            if (! $exists) {
                 $normalized[] = $skill;
             }
         }
@@ -628,7 +645,7 @@ class ProfileController extends Controller
         if (count($normalized) === 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please add at least one skill.'
+                'message' => 'Please add at least one skill.',
             ], 422);
         }
 
@@ -653,10 +670,10 @@ class ProfileController extends Controller
         $profile = JobseekerProfile::firstOrCreate(['user_id' => Auth::id()]);
         $skills = $this->getUserSkillsArray(Auth::id(), $profile);
 
-        if (!isset($skills[(int) $id])) {
+        if (! isset($skills[(int) $id])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Skill not found.'
+                'message' => 'Skill not found.',
             ], 404);
         }
 
@@ -668,11 +685,9 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Skill deleted successfully!'
+            'message' => 'Skill deleted successfully!',
         ]);
     }
-
-  
 
     /**
      * Complete Profile (Step 4 - Final Step)
@@ -682,10 +697,10 @@ class ProfileController extends Controller
         $user = Auth::user();
         $profile = $user->jobseekerProfile;
 
-        if (!$profile) {
+        if (! $profile) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please complete your personal information first.'
+                'message' => 'Please complete your personal information first.',
             ], 422);
         }
 
@@ -697,27 +712,27 @@ class ProfileController extends Controller
                     $profile->ward_id &&
                     $profile->shehia_id;
 
-        if (!$hasRequiredFields) {
+        if (! $hasRequiredFields) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please complete your personal information first.'
+                'message' => 'Please complete your personal information first.',
             ], 422);
         }
 
         $hasEducation = Education::where('user_id', $user->id)->exists();
         $hasSkills = count($this->getUserSkillsArray($user->id, $profile)) > 0;
 
-        if (!$hasEducation) {
+        if (! $hasEducation) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please add at least one education entry.'
+                'message' => 'Please add at least one education entry.',
             ], 422);
         }
 
-        if (!$hasSkills) {
+        if (! $hasSkills) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please add at least one skill.'
+                'message' => 'Please add at least one skill.',
             ], 422);
         }
 
@@ -728,7 +743,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Profile completed successfully!'
+            'message' => 'Profile completed successfully!',
         ]);
     }
 
@@ -741,13 +756,13 @@ class ProfileController extends Controller
         $profile = $user->jobseekerProfile;
 
         $step1Completed = $profile
-            && !empty($profile->phone)
-            && !empty($profile->date_of_birth)
-            && !empty($profile->region_id)
-            && !empty($profile->district_id)
-            && !empty($profile->ward_id)
-            && !empty($profile->shehia_id);
-        
+            && ! empty($profile->phone)
+            && ! empty($profile->date_of_birth)
+            && ! empty($profile->region_id)
+            && ! empty($profile->district_id)
+            && ! empty($profile->ward_id)
+            && ! empty($profile->shehia_id);
+
         return response()->json([
             'success' => true,
             'profile_completed' => $profile ? (bool) $profile->profile_completed : false,
@@ -763,16 +778,26 @@ class ProfileController extends Controller
     public function viewResume()
     {
         $profile = JobseekerProfile::where('user_id', Auth::id())->first();
-        if (!$profile || !$profile->resume) {
+        if (! $profile || ! $profile->resume) {
             abort(404);
         }
 
-        $storagePath = 'resumes/' . $profile->resume;
-        $privateStoragePath = storage_path('app/private/public/' . $storagePath);
-        $legacyPath = public_path('uploads/resumes/' . $profile->resume);
+        try {
+            if (Storage::disk('s3_resume')->exists($profile->resume)) {
+                return Storage::disk('s3_resume')->response($profile->resume, basename($profile->resume), [
+                    'Content-Disposition' => 'inline; filename="'.basename($profile->resume).'"',
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::warning('S3 resume fetch failed: '.$e->getMessage());
+        }
+
+        $storagePath = 'resumes/'.$profile->resume;
+        $privateStoragePath = storage_path('app/private/public/'.$storagePath);
+        $legacyPath = public_path('uploads/resumes/'.$profile->resume);
 
         if (Storage::disk('public')->exists($storagePath)) {
-            $absolutePath = storage_path('app/public/' . $storagePath);
+            $absolutePath = storage_path('app/public/'.$storagePath);
         } elseif (file_exists($privateStoragePath)) {
             $absolutePath = $privateStoragePath;
         } elseif (file_exists($legacyPath)) {
@@ -782,7 +807,7 @@ class ProfileController extends Controller
         }
 
         return response()->file($absolutePath, [
-            'Content-Disposition' => 'inline; filename="' . basename($absolutePath) . '"',
+            'Content-Disposition' => 'inline; filename="'.basename($absolutePath).'"',
         ]);
     }
 
@@ -792,16 +817,26 @@ class ProfileController extends Controller
     public function viewProfileImage()
     {
         $profile = JobseekerProfile::where('user_id', Auth::id())->first();
-        if (!$profile || !$profile->profile_image) {
+        if (! $profile || ! $profile->profile_image) {
             abort(404);
         }
 
-        $storagePath = 'profile_images/' . $profile->profile_image;
-        $privateStoragePath = storage_path('app/private/public/' . $storagePath);
-        $legacyPath = public_path('uploads/profile_images/' . $profile->profile_image);
+        try {
+            if (Storage::disk('s3_profilephoto')->exists($profile->profile_image)) {
+                return Storage::disk('s3_profilephoto')->response($profile->profile_image, basename($profile->profile_image), [
+                    'Content-Disposition' => 'inline; filename="'.basename($profile->profile_image).'"',
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::warning('S3 profilephoto fetch failed: '.$e->getMessage());
+        }
+
+        $storagePath = 'profile_images/'.$profile->profile_image;
+        $privateStoragePath = storage_path('app/private/public/'.$storagePath);
+        $legacyPath = public_path('uploads/profile_images/'.$profile->profile_image);
 
         if (Storage::disk('public')->exists($storagePath)) {
-            $absolutePath = storage_path('app/public/' . $storagePath);
+            $absolutePath = storage_path('app/public/'.$storagePath);
         } elseif (file_exists($privateStoragePath)) {
             $absolutePath = $privateStoragePath;
         } elseif (file_exists($legacyPath)) {
@@ -811,18 +846,9 @@ class ProfileController extends Controller
         }
 
         return response()->file($absolutePath, [
-            'Content-Disposition' => 'inline; filename="' . basename($absolutePath) . '"',
+            'Content-Disposition' => 'inline; filename="'.basename($absolutePath).'"',
         ]);
 
-
-
-
-
-
-
-
-
-        
     }
 
     /**
@@ -836,7 +862,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $regions
+            'data' => $regions,
         ]);
     }
 
@@ -852,7 +878,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $districts
+            'data' => $districts,
         ]);
     }
 
@@ -868,7 +894,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $wards
+            'data' => $wards,
         ]);
     }
 
@@ -884,7 +910,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $shehias
+            'data' => $shehias,
         ]);
     }
 
@@ -894,16 +920,24 @@ class ProfileController extends Controller
     private function validateLocationHierarchy($regionId, $districtId, $wardId, $shehiaId): bool
     {
         $region = Region::find($regionId);
-        if (!$region) return false;
+        if (! $region) {
+            return false;
+        }
 
         $district = District::find($districtId);
-        if (!$district || $district->region_id != $regionId) return false;
+        if (! $district || $district->region_id != $regionId) {
+            return false;
+        }
 
         $ward = Ward::find($wardId);
-        if (!$ward || $ward->district_id != $districtId) return false;
+        if (! $ward || $ward->district_id != $districtId) {
+            return false;
+        }
 
         $shehia = Shehia::find($shehiaId);
-        if (!$shehia || $shehia->ward_id != $wardId) return false;
+        if (! $shehia || $shehia->ward_id != $wardId) {
+            return false;
+        }
 
         return true;
     }
@@ -914,15 +948,17 @@ class ProfileController extends Controller
     private function checkProfileCompletion($user): void
     {
         $profile = $user->jobseekerProfile;
-        if (!$profile) return;
+        if (! $profile) {
+            return;
+        }
 
         $hasEducation = Education::where('user_id', $user->id)->exists();
         $hasSkills = count($this->getUserSkillsArray($user->id, $profile)) > 0;
-        $hasStep1 = !empty($profile->phone)
-            && !empty($profile->region_id)
-            && !empty($profile->district_id)
-            && !empty($profile->ward_id)
-            && !empty($profile->shehia_id);
+        $hasStep1 = ! empty($profile->phone)
+            && ! empty($profile->region_id)
+            && ! empty($profile->district_id)
+            && ! empty($profile->ward_id)
+            && ! empty($profile->shehia_id);
 
         if ($hasStep1 && $hasEducation && $hasSkills) {
             $profile->is_completed = true;
@@ -956,7 +992,7 @@ class ProfileController extends Controller
                 return strcasecmp($item, $skill) === 0;
             });
 
-            if (!$exists) {
+            if (! $exists) {
                 $normalized[] = $skill;
             }
         }
@@ -976,6 +1012,7 @@ class ProfileController extends Controller
         if ($profile && Schema::hasColumn($profile->getTable(), 'skills')) {
             $profile->skills = implode(', ', $skills);
             $profile->save();
+
             return;
         }
 

@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\District;
 use App\Models\Graduate;
 use App\Models\Job;
 use App\Models\JobApplication;
-use App\Models\District;
 use App\Models\Region;
 use App\Models\Shehia;
 use App\Models\User;
 use App\Models\Ward;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class DashboardController extends Controller
@@ -45,20 +45,21 @@ class DashboardController extends Controller
                             'job_title' => $app->job->title,
                             'applicant_name' => $app->jobseeker->name,
                             'status' => $app->status === 'pending' ? 'submitted' : $app->status,
-                            'created_at' => $app->created_at->format('Y-m-d H:i:s')
+                            'created_at' => $app->created_at->format('Y-m-d H:i:s'),
                         ];
-                    })
+                    }),
             ];
 
             return response()->json([
                 'success' => true,
-                'stats' => $stats
+                'stats' => $stats,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting stats:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading statistics.'
+                'message' => 'Error loading statistics.',
             ], 500);
         }
     }
@@ -78,13 +79,14 @@ class DashboardController extends Controller
                     'active' => $active,
                     'employed' => $employed,
                     'unemployed' => $unemployed,
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting graduate stats:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading graduate statistics.'
+                'message' => 'Error loading graduate statistics.',
             ], 500);
         }
     }
@@ -110,20 +112,21 @@ class DashboardController extends Controller
                         'created_at' => $job->created_at->format('Y-m-d H:i:s'),
                         'employer' => [
                             'name' => $job->employer->name,
-                            'email' => $job->employer->email
-                        ]
+                            'email' => $job->employer->email,
+                        ],
                     ];
                 });
 
             return response()->json([
                 'success' => true,
-                'jobs' => $jobs
+                'jobs' => $jobs,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting pending jobs:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading pending jobs.'
+                'message' => 'Error loading pending jobs.',
             ], 500);
         }
     }
@@ -134,10 +137,10 @@ class DashboardController extends Controller
             $query = Job::with('employer');
 
             if ($request->has('search') && $request->search) {
-                $query->where(function($q) use ($request) {
+                $query->where(function ($q) use ($request) {
                     $q->where('title', 'LIKE', "%{$request->search}%")
-                      ->orWhere('company_name', 'LIKE', "%{$request->search}%")
-                      ->orWhere('location', 'LIKE', "%{$request->search}%");
+                        ->orWhere('company_name', 'LIKE', "%{$request->search}%")
+                        ->orWhere('location', 'LIKE', "%{$request->search}%");
                 });
             }
 
@@ -160,7 +163,7 @@ class DashboardController extends Controller
                         'company_name' => $job->company_name,
                         'location' => $job->location,
                         'employment_type' => $job->employment_type,
-                       
+
                         'description' => $job->description,
                         'is_active' => $job->is_active,
                         'is_approved' => $job->is_approved,
@@ -169,20 +172,21 @@ class DashboardController extends Controller
                         'created_at' => $job->created_at->format('Y-m-d H:i:s'),
                         'employer' => [
                             'name' => $job->employer->name,
-                            'email' => $job->employer->email
-                        ]
+                            'email' => $job->employer->email,
+                        ],
                     ];
                 });
 
             return response()->json([
                 'success' => true,
-                'jobs' => $jobs
+                'jobs' => $jobs,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting all jobs:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading jobs.'
+                'message' => 'Error loading jobs.',
             ], 500);
         }
     }
@@ -198,13 +202,14 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Job approved successfully!'
+                'message' => 'Job approved successfully!',
             ]);
         } catch (\Exception $e) {
             Log::error('Error approving job:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error approving job.'
+                'message' => 'Error approving job.',
             ], 500);
         }
     }
@@ -219,7 +224,7 @@ class DashboardController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -232,13 +237,14 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Job rejected. Reason sent to employer.'
+                'message' => 'Job rejected. Reason sent to employer.',
             ]);
         } catch (\Exception $e) {
             Log::error('Error rejecting job:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error rejecting job.'
+                'message' => 'Error rejecting job.',
             ], 500);
         }
     }
@@ -267,23 +273,24 @@ class DashboardController extends Controller
                     'application_deadline' => $job->application_deadline ? $job->application_deadline->format('Y-m-d') : null,
                     'employer' => [
                         'name' => $job->employer->name,
-                        'email' => $job->employer->email
+                        'email' => $job->employer->email,
                     ],
                     'applications' => $job->applications->map(function ($app) {
                         return [
                             'id' => $app->id,
                             'jobseeker_name' => $app->jobseeker->name,
                             'status' => $app->status,
-                            'created_at' => $app->created_at->format('Y-m-d H:i:s')
+                            'created_at' => $app->created_at->format('Y-m-d H:i:s'),
                         ];
-                    })
-                ]
+                    }),
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting job details:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading job details.'
+                'message' => 'Error loading job details.',
             ], 500);
         }
     }
@@ -296,13 +303,14 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Job deleted successfully!'
+                'message' => 'Job deleted successfully!',
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting job:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting job.'
+                'message' => 'Error deleting job.',
             ], 500);
         }
     }
@@ -323,19 +331,20 @@ class DashboardController extends Controller
                         'phone' => $user->phone,
                         'is_active' => $user->is_active,
                         'jobs_count' => $user->jobs_count,
-                        'created_at' => $user->created_at->format('Y-m-d H:i:s')
+                        'created_at' => $user->created_at->format('Y-m-d H:i:s'),
                     ];
                 });
 
             return response()->json([
                 'success' => true,
-                'employers' => $employers
+                'employers' => $employers,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting employers:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading employers.'
+                'message' => 'Error loading employers.',
             ], 500);
         }
     }
@@ -355,19 +364,20 @@ class DashboardController extends Controller
                         'phone' => $user->phone,
                         'is_active' => $user->is_active,
                         'applications_count' => $user->applications_count,
-                        'created_at' => $user->created_at->format('Y-m-d H:i:s')
+                        'created_at' => $user->created_at->format('Y-m-d H:i:s'),
                     ];
                 });
 
             return response()->json([
                 'success' => true,
-                'jobseekers' => $jobseekers
+                'jobseekers' => $jobseekers,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting jobseekers:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading job seekers.'
+                'message' => 'Error loading job seekers.',
             ], 500);
         }
     }
@@ -426,7 +436,7 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading graduates.'
+                'message' => 'Error loading graduates.',
             ], 500);
         }
     }
@@ -443,7 +453,7 @@ class DashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Graduate not found.'
+                'message' => 'Graduate not found.',
             ], 404);
         }
     }
@@ -497,21 +507,21 @@ class DashboardController extends Controller
             $payload['registered_from'] = 'admin';
 
             if (empty($payload['student_number'])) {
-                $payload['student_number'] = 'GR-' . strtoupper(Str::random(8));
+                $payload['student_number'] = 'GR-'.strtoupper(Str::random(8));
             }
 
             Graduate::create($payload);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Graduate added successfully!'
+                'message' => 'Graduate added successfully!',
             ]);
         } catch (\Exception $e) {
             Log::error('Error storing graduate:', ['error' => $e->getMessage()]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error saving graduate.'
+                'message' => 'Error saving graduate.',
             ], 500);
         }
     }
@@ -521,9 +531,9 @@ class DashboardController extends Controller
         $graduate = Graduate::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'student_number' => 'nullable|string|max:100|unique:graduates,student_number,' . $id,
+            'student_number' => 'nullable|string|max:100|unique:graduates,student_number,'.$id,
             'full_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:graduates,email,' . $id,
+            'email' => 'required|email|max:255|unique:graduates,email,'.$id,
             'phone' => 'required|string|max:30',
             'gender' => 'required|in:Male,Female',
             'resident_number' => 'required|string|max:100',
@@ -566,21 +576,21 @@ class DashboardController extends Controller
             $payload = $this->extractGraduatePayload($request, $graduate);
 
             if (empty($payload['student_number'])) {
-                $payload['student_number'] = $graduate->student_number ?: 'GR-' . strtoupper(Str::random(8));
+                $payload['student_number'] = $graduate->student_number ?: 'GR-'.strtoupper(Str::random(8));
             }
 
             $graduate->update($payload);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Graduate updated successfully!'
+                'message' => 'Graduate updated successfully!',
             ]);
         } catch (\Exception $e) {
             Log::error('Error updating graduate:', ['error' => $e->getMessage()]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating graduate.'
+                'message' => 'Error updating graduate.',
             ], 500);
         }
     }
@@ -593,14 +603,14 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Graduate deleted successfully!'
+                'message' => 'Graduate deleted successfully!',
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting graduate:', ['error' => $e->getMessage()]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting graduate.'
+                'message' => 'Error deleting graduate.',
             ], 500);
         }
     }
@@ -615,7 +625,7 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors(),
-                'message' => 'Please upload a valid CSV file.'
+                'message' => 'Please upload a valid CSV file.',
             ], 422);
         }
 
@@ -629,11 +639,12 @@ class DashboardController extends Controller
             }
 
             $headers = fgetcsv($handle);
-            if (!$headers) {
+            if (! $headers) {
                 fclose($handle);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'CSV file is empty.'
+                    'message' => 'CSV file is empty.',
                 ], 422);
             }
 
@@ -661,7 +672,8 @@ class DashboardController extends Controller
                 ]);
 
                 if ($rowValidator->fails()) {
-                    $errors[] = 'Line ' . $line . ': ' . implode(', ', $rowValidator->errors()->all());
+                    $errors[] = 'Line '.$line.': '.implode(', ', $rowValidator->errors()->all());
+
                     continue;
                 }
 
@@ -698,7 +710,7 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error importing graduates.'
+                'message' => 'Error importing graduates.',
             ], 500);
         }
     }
@@ -718,7 +730,7 @@ class DashboardController extends Controller
                 'skills',
                 'certifications',
                 'status',
-            ]
+            ],
         ]);
     }
 
@@ -754,7 +766,7 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors(),
-                'message' => 'Please fix the highlighted fields and try again.'
+                'message' => 'Please fix the highlighted fields and try again.',
             ], 422);
         }
 
@@ -774,7 +786,7 @@ class DashboardController extends Controller
             $yearOfGraduation = $request->completed_year ?: $request->ending_year;
 
             Graduate::create([
-                'student_number' => 'GR-' . strtoupper(Str::random(8)),
+                'student_number' => 'GR-'.strtoupper(Str::random(8)),
                 'full_name' => $name,
                 'email' => $request->email,
                 'phone' => $request->phone,
@@ -807,14 +819,14 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Graduate registration submitted successfully.'
+                'message' => 'Graduate registration submitted successfully.',
             ]);
         } catch (\Exception $e) {
             Log::error('Error registering graduate from welcome page:', ['error' => $e->getMessage()]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error submitting graduate registration.'
+                'message' => 'Error submitting graduate registration.',
             ], 500);
         }
     }
@@ -901,13 +913,17 @@ class DashboardController extends Controller
 
     private function saveGraduateFile($file, string $directory): string
     {
-        $targetPath = public_path('uploads/graduates/' . $directory);
-        if (!is_dir($targetPath)) {
-            mkdir($targetPath, 0755, true);
-        }
+        $filename = Str::uuid()->toString().'.'.$file->getClientOriginalExtension();
 
-        $filename = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
-        $file->move($targetPath, $filename);
+        if (config('filesystems.default') === 's3') {
+            Storage::disk('s3_graduates')->putFileAs($directory, $file, $filename);
+        } else {
+            $targetPath = public_path('uploads/graduates/'.$directory);
+            if (! is_dir($targetPath)) {
+                mkdir($targetPath, 0755, true);
+            }
+            $file->move($targetPath, $filename);
+        }
 
         return $filename;
     }
@@ -922,303 +938,302 @@ class DashboardController extends Controller
         };
     }
 
-
     // User Management Methods
-public function getUsers(Request $request)
-{
-    try {
-        $query = User::query();
+    public function getUsers(Request $request)
+    {
+        try {
+            $query = User::query();
 
-        if ($request->has('search') && $request->search) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
-            });
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('email', 'LIKE', "%{$search}%");
+                });
+            }
+
+            if ($request->has('role') && $request->role) {
+                $query->where('role', $request->role);
+            }
+
+            if ($request->has('status') && $request->status) {
+                $isActive = $request->status === 'active';
+                $query->where('is_active', $isActive);
+            }
+
+            $users = $query->orderBy('created_at', 'desc')->get();
+
+            return response()->json([
+                'success' => true,
+                'users' => $users->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'role_label' => ucfirst($user->role),
+                        'company_name' => $user->company_name,
+                        'phone' => $user->phone,
+                        'is_active' => $user->is_active,
+                        'created_at' => $user->created_at->format('Y-m-d H:i:s'),
+                    ];
+                }),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading users: '.$e->getMessage(),
+            ], 500);
         }
+    }
 
-        if ($request->has('role') && $request->role) {
-            $query->where('role', $request->role);
-        }
+    public function getUser($id)
+    {
+        try {
+            $user = User::findOrFail($id);
 
-        if ($request->has('status') && $request->status) {
-            $isActive = $request->status === 'active';
-            $query->where('is_active', $isActive);
-        }
-
-        $users = $query->orderBy('created_at', 'desc')->get();
-        
-        return response()->json([
-            'success' => true,
-            'users' => $users->map(function($user) {
-                return [
+            return response()->json([
+                'success' => true,
+                'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role,
-                    'role_label' => ucfirst($user->role),
                     'company_name' => $user->company_name,
                     'phone' => $user->phone,
                     'is_active' => $user->is_active,
-                    'created_at' => $user->created_at->format('Y-m-d H:i:s')
-                ];
-            })
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error loading users: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-public function getUser($id)
-{
-    try {
-        $user = User::findOrFail($id);
-        return response()->json([
-            'success' => true,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'company_name' => $user->company_name,
-                'phone' => $user->phone,
-                'is_active' => $user->is_active
-            ]
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'User not found.'
-        ], 404);
-    }
-}
-
-public function storeUser(Request $request)
-{
-    try {
-        $request->merge([
-            'is_active' => $request->has('is_active')
-        ]);
-
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-            'role' => 'required|in:admin,employer,jobseeker',
-            'company_name' => 'nullable|required_if:role,employer|string|max:255',
-            'phone' => 'nullable|required_if:role,employer|string|max:20',
-            'is_active' => 'boolean'
-        ]);
-
-        if ($validator->fails()) {
+                ],
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+                'message' => 'User not found.',
+            ], 404);
         }
-
-        $companyName = $request->role === 'employer' ? $request->company_name : null;
-        $phone = $request->role === 'employer' ? $request->phone : null;
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-            'company_name' => $companyName,
-            'phone' => $phone,
-            'is_active' => $request->boolean('is_active')
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User created successfully!'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error creating user: ' . $e->getMessage()
-        ], 500);
     }
-}
 
-public function updateUser(Request $request, $id)
-{
-    try {
-        $user = User::findOrFail($id);
+    public function storeUser(Request $request)
+    {
+        try {
+            $request->merge([
+                'is_active' => $request->has('is_active'),
+            ]);
 
-        $request->merge([
-            'is_active' => $request->has('is_active')
-        ]);
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => 'required|string|min:8',
+                'role' => 'required|in:admin,employer,jobseeker',
+                'company_name' => 'nullable|required_if:role,employer|string|max:255',
+                'phone' => 'nullable|required_if:role,employer|string|max:20',
+                'is_active' => 'boolean',
+            ]);
 
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $id,
-            'password' => 'nullable|string|min:8',
-            'role' => 'required|in:admin,employer,jobseeker',
-            'company_name' => 'nullable|required_if:role,employer|string|max:255',
-            'phone' => 'nullable|required_if:role,employer|string|max:20',
-            'is_active' => 'boolean'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $companyName = $request->role === 'employer' ? $request->company_name : null;
-        $phone = $request->role === 'employer' ? $request->phone : null;
-
-        $user->name = $request->name;
-        $user->email = $request->email;
-        if ($request->password) {
-            $user->password = Hash::make($request->password);
-        }
-        $user->role = $request->role;
-        $user->company_name = $companyName;
-        $user->phone = $phone;
-        $user->is_active = $request->boolean('is_active');
-        $user->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User updated successfully!'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error updating user: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-public function deleteUser($id)
-{
-    try {
-        $user = User::findOrFail($id);
-        
-        // Prevent deleting admin users
-        if ($user->role === 'admin') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot delete admin users.'
-            ], 403);
-        }
-        
-        $user->delete();
-        return response()->json([
-            'success' => true,
-            'message' => 'User deleted successfully!'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error deleting user: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-public function toggleUserStatus($id)
-{
-    try {
-        $user = User::findOrFail($id);
-        $user->is_active = !$user->is_active;
-        $user->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User status updated successfully!',
-            'is_active' => $user->is_active
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error toggling user status.'
-        ], 500);
-    }
-}
-
-// Report Methods
-public function generateReport(Request $request)
-{
-    try {
-        $reportType = $request->report_type;
-        $year = $request->year;
-        $quarter = $request->quarter;
-
-        $title = '';
-        $startDate = null;
-        $endDate = null;
-
-        switch ($reportType) {
-            case 'quarterly':
-                $title = "Quarterly Report - Q{$quarter} {$year}";
-                $startDate = date("{$year}-" . (($quarter - 1) * 3 + 1) . "-01");
-                $endDate = date("{$year}-" . ($quarter * 3) . "-" . cal_days_in_month(CAL_GREGORIAN, $quarter * 3, $year));
-                break;
-            case 'semiannual':
-                $title = "Semiannual Report - {$year}";
-                $startDate = date("{$year}-01-01");
-                $endDate = date("{$year}-06-30");
-                break;
-            case 'yearly':
-                $title = "Yearly Report - {$year}";
-                $startDate = date("{$year}-01-01");
-                $endDate = date("{$year}-12-31");
-                break;
-            default:
+            if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid report type.'
-                ], 400);
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $companyName = $request->role === 'employer' ? $request->company_name : null;
+            $phone = $request->role === 'employer' ? $request->phone : null;
+
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => $request->role,
+                'company_name' => $companyName,
+                'phone' => $phone,
+                'is_active' => $request->boolean('is_active'),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User created successfully!',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating user: '.$e->getMessage(),
+            ], 500);
         }
+    }
 
-        // Get data for the report period
-        $totalJobs = Job::whereBetween('created_at', [$startDate, $endDate])->count();
-        $activeJobs = Job::whereBetween('created_at', [$startDate, $endDate])
-            ->where('is_active', true)
-            ->where('is_approved', true)
-            ->count();
-        $pendingJobs = Job::whereBetween('created_at', [$startDate, $endDate])
-            ->where('is_approved', false)
-            ->where('is_rejected', false)
-            ->count();
-        $totalEmployers = User::where('role', 'employer')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->count();
-        $totalJobseekers = User::where('role', 'jobseeker')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->count();
-        $totalApplications = JobApplication::whereBetween('created_at', [$startDate, $endDate])->count();
+    public function updateUser(Request $request, $id)
+    {
+        try {
+            $user = User::findOrFail($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'title' => $title,
-                'period' => [
-                    'start' => $startDate,
-                    'end' => $endDate
+            $request->merge([
+                'is_active' => $request->has('is_active'),
+            ]);
+
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users,email,'.$id,
+                'password' => 'nullable|string|min:8',
+                'role' => 'required|in:admin,employer,jobseeker',
+                'company_name' => 'nullable|required_if:role,employer|string|max:255',
+                'phone' => 'nullable|required_if:role,employer|string|max:20',
+                'is_active' => 'boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $companyName = $request->role === 'employer' ? $request->company_name : null;
+            $phone = $request->role === 'employer' ? $request->phone : null;
+
+            $user->name = $request->name;
+            $user->email = $request->email;
+            if ($request->password) {
+                $user->password = Hash::make($request->password);
+            }
+            $user->role = $request->role;
+            $user->company_name = $companyName;
+            $user->phone = $phone;
+            $user->is_active = $request->boolean('is_active');
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User updated successfully!',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating user: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function deleteUser($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            // Prevent deleting admin users
+            if ($user->role === 'admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete admin users.',
+                ], 403);
+            }
+
+            $user->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User deleted successfully!',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting user: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function toggleUserStatus($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            $user->is_active = ! $user->is_active;
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User status updated successfully!',
+                'is_active' => $user->is_active,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error toggling user status.',
+            ], 500);
+        }
+    }
+
+    // Report Methods
+    public function generateReport(Request $request)
+    {
+        try {
+            $reportType = $request->report_type;
+            $year = $request->year;
+            $quarter = $request->quarter;
+
+            $title = '';
+            $startDate = null;
+            $endDate = null;
+
+            switch ($reportType) {
+                case 'quarterly':
+                    $title = "Quarterly Report - Q{$quarter} {$year}";
+                    $startDate = date("{$year}-".(($quarter - 1) * 3 + 1).'-01');
+                    $endDate = date("{$year}-".($quarter * 3).'-'.cal_days_in_month(CAL_GREGORIAN, $quarter * 3, $year));
+                    break;
+                case 'semiannual':
+                    $title = "Semiannual Report - {$year}";
+                    $startDate = date("{$year}-01-01");
+                    $endDate = date("{$year}-06-30");
+                    break;
+                case 'yearly':
+                    $title = "Yearly Report - {$year}";
+                    $startDate = date("{$year}-01-01");
+                    $endDate = date("{$year}-12-31");
+                    break;
+                default:
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid report type.',
+                    ], 400);
+            }
+
+            // Get data for the report period
+            $totalJobs = Job::whereBetween('created_at', [$startDate, $endDate])->count();
+            $activeJobs = Job::whereBetween('created_at', [$startDate, $endDate])
+                ->where('is_active', true)
+                ->where('is_approved', true)
+                ->count();
+            $pendingJobs = Job::whereBetween('created_at', [$startDate, $endDate])
+                ->where('is_approved', false)
+                ->where('is_rejected', false)
+                ->count();
+            $totalEmployers = User::where('role', 'employer')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->count();
+            $totalJobseekers = User::where('role', 'jobseeker')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->count();
+            $totalApplications = JobApplication::whereBetween('created_at', [$startDate, $endDate])->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'title' => $title,
+                    'period' => [
+                        'start' => $startDate,
+                        'end' => $endDate,
+                    ],
+                    'total_jobs' => $totalJobs,
+                    'active_jobs' => $activeJobs,
+                    'pending_jobs' => $pendingJobs,
+                    'total_employers' => $totalEmployers,
+                    'total_jobseekers' => $totalJobseekers,
+                    'total_applications' => $totalApplications,
                 ],
-                'total_jobs' => $totalJobs,
-                'active_jobs' => $activeJobs,
-                'pending_jobs' => $pendingJobs,
-                'total_employers' => $totalEmployers,
-                'total_jobseekers' => $totalJobseekers,
-                'total_applications' => $totalApplications
-            ]
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error generating report: ' . $e->getMessage()
-        ], 500);
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error generating report: '.$e->getMessage(),
+            ], 500);
+        }
     }
-    }
-
-
 }

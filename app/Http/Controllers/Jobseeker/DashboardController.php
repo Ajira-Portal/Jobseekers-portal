@@ -3,23 +3,22 @@
 namespace App\Http\Controllers\Jobseeker;
 
 use App\Http\Controllers\Controller;
+use App\Models\District;
+use App\Models\Education;
 use App\Models\Job;
 use App\Models\JobApplication;
-use App\Models\Education;
-use App\Models\WorkExperience;
-use App\Models\JobseekerProfile;
 use App\Models\Region;
-use App\Models\District;
-use App\Models\Ward;
 use App\Models\Shehia;
+use App\Models\Ward;
+use App\Models\WorkExperience;
 use App\Services\AjiraApiClient;
 use App\Services\SigningService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class DashboardController extends Controller
 {
@@ -58,10 +57,10 @@ class DashboardController extends Controller
             // Search filter
             if ($request->has('search') && $request->search) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('title', 'LIKE', "%{$search}%")
-                      ->orWhere('company_name', 'LIKE', "%{$search}%")
-                      ->orWhere('location', 'LIKE', "%{$search}%");
+                        ->orWhere('company_name', 'LIKE', "%{$search}%")
+                        ->orWhere('location', 'LIKE', "%{$search}%");
                 });
             }
 
@@ -75,21 +74,22 @@ class DashboardController extends Controller
                 $query->where('employment_type', $request->employment_type);
             }
 
-            $perPage = $request->has('per_page') ? (int)$request->per_page : 9;
+            $perPage = $request->has('per_page') ? (int) $request->per_page : 9;
             $jobs = $query->with('employer')
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
             return response()->json([
                 'success' => true,
-                'jobs' => $jobs
+                'jobs' => $jobs,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error loading public jobs:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading jobs: ' . $e->getMessage()
+                'message' => 'Error loading jobs: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -132,19 +132,16 @@ class DashboardController extends Controller
                         'company_name' => $job->employer->company_name,
                     ],
                 ],
-                'hasApplied' => $hasApplied
+                'hasApplied' => $hasApplied,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Job not found'
+                'message' => 'Job not found',
             ], 404);
         }
     }
-
-
-
 
     public function index()
     {
@@ -162,11 +159,11 @@ class DashboardController extends Controller
             ->where('is_approved', true);
 
         if ($request->has('search') && $request->search) {
-            $query->where(function($q) use ($request) {
+            $query->where(function ($q) use ($request) {
                 $q->where('title', 'LIKE', "%{$request->search}%")
-                  ->orWhere('company_name', 'LIKE', "%{$request->search}%")
-                  ->orWhere('location', 'LIKE', "%{$request->search}%")
-                  ->orWhere('description', 'LIKE', "%{$request->search}%");
+                    ->orWhere('company_name', 'LIKE', "%{$request->search}%")
+                    ->orWhere('location', 'LIKE', "%{$request->search}%")
+                    ->orWhere('description', 'LIKE', "%{$request->search}%");
             });
         }
 
@@ -200,10 +197,10 @@ class DashboardController extends Controller
                     'name' => $job->employer->name,
                     'company_name' => $job->employer->company_name,
                 ],
-                'has_attachment' => !empty($job->attachment_path),
+                'has_attachment' => ! empty($job->attachment_path),
                 'attachment_name' => $job->attachment_name,
                 'attachment_mime' => $job->attachment_mime,
-                'attachment_url' => !empty($job->attachment_path) ? route('jobseeker.jobs.attachment', ['id' => $job->id]) : null,
+                'attachment_url' => ! empty($job->attachment_path) ? route('jobseeker.jobs.attachment', ['id' => $job->id]) : null,
             ];
         });
 
@@ -215,8 +212,8 @@ class DashboardController extends Controller
                 'per_page' => $jobs->perPage(),
                 'current_page' => $jobs->currentPage(),
                 'last_page' => $jobs->lastPage(),
-                'links' => $jobs->links()->toHtml()
-            ]
+                'links' => $jobs->links()->toHtml(),
+            ],
         ]);
     }
 
@@ -241,23 +238,23 @@ class DashboardController extends Controller
                 'company_name' => $job->company_name,
                 'location' => $job->location,
                 'employment_type' => $job->employment_type,
-                
+
                 'description' => $job->description,
                 'requirements' => $job->requirements,
-                'has_attachment' => !empty($job->attachment_path),
+                'has_attachment' => ! empty($job->attachment_path),
                 'attachment_name' => $job->attachment_name,
                 'attachment_mime' => $job->attachment_mime,
-                'attachment_url' => !empty($job->attachment_path) ? route('jobseeker.jobs.attachment', ['id' => $job->id]) : null,
-                
+                'attachment_url' => ! empty($job->attachment_path) ? route('jobseeker.jobs.attachment', ['id' => $job->id]) : null,
+
                 'application_deadline' => $job->application_deadline ? $job->application_deadline->format('Y-m-d') : null,
                 'created_at' => $job->created_at->format('Y-m-d H:i:s'),
                 'employer' => [
                     'name' => $job->employer->name,
                     'email' => $job->employer->email,
-                    'company_name' => $job->employer->company_name
-                ]
+                    'company_name' => $job->employer->company_name,
+                ],
             ],
-            'hasApplied' => $hasApplied
+            'hasApplied' => $hasApplied,
         ]);
     }
 
@@ -267,7 +264,22 @@ class DashboardController extends Controller
             ->where('is_approved', true)
             ->findOrFail($id);
 
-        if (empty($job->attachment_path) || !Storage::disk('local')->exists($job->attachment_path)) {
+        if (empty($job->attachment_path)) {
+            abort(404, 'Attachment not found.');
+        }
+
+        try {
+            if (Storage::disk('s3_jobattachments')->exists($job->attachment_path)) {
+                return Storage::disk('s3_jobattachments')->download(
+                    $job->attachment_path,
+                    $job->attachment_name ?: basename($job->attachment_path)
+                );
+            }
+        } catch (\Exception $e) {
+            Log::warning('S3 job attachment fetch failed: '.$e->getMessage());
+        }
+
+        if (! Storage::disk('local')->exists($job->attachment_path)) {
             abort(404, 'Attachment not found.');
         }
 
@@ -277,7 +289,7 @@ class DashboardController extends Controller
         );
     }
 
-     public function apply(Request $request, $jobId)
+    public function apply(Request $request, $jobId)
     {
         try {
             $job = Job::where('is_active', true)
@@ -291,26 +303,30 @@ class DashboardController extends Controller
             if ($existing) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'You have already applied for this job.'
+                    'message' => 'You have already applied for this job.',
                 ], 400);
             }
 
             $validator = Validator::make($request->all(), [
-                'cover_letter' => 'required|file|mimes:pdf|max:2048' // 2MB max
+                'cover_letter' => 'required|file|mimes:pdf|max:2048', // 2MB max
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
             $coverLetterPath = null;
             if ($request->hasFile('cover_letter')) {
                 $file = $request->file('cover_letter');
-                $filename = time() . '_' . Auth::id() . '_cover_letter.pdf';
-                $file->move(public_path('uploads/cover_letters'), $filename);
+                $filename = time().'_'.Auth::id().'_cover_letter.pdf';
+                if (config('filesystems.default') === 's3') {
+                    Storage::disk('s3_coverletter')->putFileAs('', $file, $filename);
+                } else {
+                    $file->move(public_path('uploads/cover_letters'), $filename);
+                }
                 $coverLetterPath = $filename;
             }
 
@@ -318,7 +334,7 @@ class DashboardController extends Controller
                 'job_id' => $jobId,
                 'jobseeker_id' => Auth::id(),
                 'cover_letter' => $coverLetterPath,
-                'status' => 'submitted'
+                'status' => 'submitted',
             ]);
 
             $job->incrementApplications();
@@ -326,22 +342,21 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Application submitted successfully!',
-                'application' => $application
+                'application' => $application,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error applying for job:', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error submitting application: ' . $e->getMessage()
+                'message' => 'Error submitting application: '.$e->getMessage(),
             ], 500);
         }
     }
-
 
     public function getMyApplications()
     {
@@ -358,13 +373,13 @@ class DashboardController extends Controller
                     'status' => $app->status === 'pending' ? 'submitted' : $app->status,
                     'cover_letter' => $app->cover_letter,
                     'created_at' => $app->created_at->format('Y-m-d H:i:s'),
-                    'employer_name' => $app->job->employer->name
+                    'employer_name' => $app->job->employer->name,
                 ];
             });
 
         return response()->json([
             'success' => true,
-            'applications' => $applications
+            'applications' => $applications,
         ]);
     }
 
@@ -373,10 +388,10 @@ class DashboardController extends Controller
         $application = JobApplication::where('jobseeker_id', Auth::id())
             ->findOrFail($applicationId);
 
-        if (!in_array($application->status, ['submitted'], true)) {
+        if (! in_array($application->status, ['submitted'], true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot withdraw application after it has been reviewed.'
+                'message' => 'Cannot withdraw application after it has been reviewed.',
             ], 400);
         }
 
@@ -386,12 +401,9 @@ class DashboardController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Application withdrawn successfully!'
+            'message' => 'Application withdrawn successfully!',
         ]);
     }
-
-
-
 
     /**
      * Fetch resident details by ZANID using SigningService and AjiraApiClient
@@ -425,9 +437,10 @@ class DashboardController extends Controller
                 'payload' => $innerPayload,
                 'signature' => $signature,
             ];
-            Log::info('ZANID Payload: ' . json_encode($finalRequest));
+            Log::info('ZANID Payload: '.json_encode($finalRequest));
         } catch (\Exception $e) {
-            Log::error('ZANID Payload Signing Error: ' . $e->getMessage(), ['zanid' => $zanId]);
+            Log::error('ZANID Payload Signing Error: '.$e->getMessage(), ['zanid' => $zanId]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Internal configuration error: Unable to securely sign the payload.',
@@ -442,7 +455,7 @@ class DashboardController extends Controller
                 $code = $payloadObj['code'];
                 $msg = $payloadObj['msg'] ?? 'Unknown Error';
 
-                if ($code === 9000 && !empty($payloadObj['data'])) {
+                if ($code === 9000 && ! empty($payloadObj['data'])) {
                     $data = $payloadObj['data'];
 
                     $firstName = $data['PRSN_FIRST_NAME'] ?? '';
@@ -452,7 +465,7 @@ class DashboardController extends Controller
 
                     $gender = (strtoupper($data['PRSN_SEX'] ?? '') === 'FEMALE') ? 'female' : 'male';
                     $dob = null;
-                    if (!empty($data['PRSN_BIRTH_DATE'])) {
+                    if (! empty($data['PRSN_BIRTH_DATE'])) {
                         try {
                             $dob = Carbon::createFromFormat('j-n-Y', $data['PRSN_BIRTH_DATE'])->format('Y-m-d');
                         } catch (\Exception $e) {
@@ -483,7 +496,7 @@ class DashboardController extends Controller
                 } else {
                     return response()->json([
                         'success' => false,
-                        'message' => 'ZANID verification service returned an error: ' . $msg,
+                        'message' => 'ZANID verification service returned an error: '.$msg,
                     ], 400);
                 }
             }
@@ -494,7 +507,8 @@ class DashboardController extends Controller
             ], 500);
 
         } catch (\Exception $e) {
-            Log::error('ZANID API Exception: ' . $e->getMessage(), ['zanid' => $zanId]);
+            Log::error('ZANID API Exception: '.$e->getMessage(), ['zanid' => $zanId]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to connect to ZANID service. Please try again later.',
@@ -511,11 +525,11 @@ class DashboardController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             // Get or create profile
             $profile = $user->personalInfo;
-            if (!$profile) {
-                $profile = new PersonalInfo();
+            if (! $profile) {
+                $profile = new PersonalInfo;
                 $profile->user_id = $user->id;
             }
 
@@ -531,13 +545,13 @@ class DashboardController extends Controller
                 'shehias' => 'required|exists:shehias,id',
 
                 'resume' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -549,30 +563,36 @@ class DashboardController extends Controller
             $profile->phone = $request->phone;
             $profile->gender = $request->gender;
             $profile->date_of_birth = $request->date_of_birth;
-            
-            
-           
+
             $profile->profile_completed = true;
 
             // Handle resume upload
             if ($request->hasFile('resume')) {
-                if ($profile->resume && file_exists(public_path('uploads/resumes/' . $profile->resume))) {
-                    unlink(public_path('uploads/resumes/' . $profile->resume));
+                if ($profile->resume && file_exists(public_path('uploads/resumes/'.$profile->resume))) {
+                    @unlink(public_path('uploads/resumes/'.$profile->resume));
                 }
                 $file = $request->file('resume');
-                $filename = time() . '_' . $user->id . '_resume.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/resumes'), $filename);
+                $filename = time().'_'.$user->id.'_resume.'.$file->getClientOriginalExtension();
+                if (config('filesystems.default') === 's3') {
+                    Storage::disk('s3_resume')->putFileAs('', $file, $filename);
+                } else {
+                    $file->move(public_path('uploads/resumes'), $filename);
+                }
                 $profile->resume = $filename;
             }
 
             // Handle profile image
             if ($request->hasFile('profile_image')) {
-                if ($profile->profile_image && file_exists(public_path('uploads/profile_images/' . $profile->profile_image))) {
-                    unlink(public_path('uploads/profile_images/' . $profile->profile_image));
+                if ($profile->profile_image && file_exists(public_path('uploads/profile_images/'.$profile->profile_image))) {
+                    @unlink(public_path('uploads/profile_images/'.$profile->profile_image));
                 }
                 $file = $request->file('profile_image');
-                $filename = time() . '_' . $user->id . '_profile.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/profile_images'), $filename);
+                $filename = time().'_'.$user->id.'_profile.'.$file->getClientOriginalExtension();
+                if (config('filesystems.default') === 's3') {
+                    Storage::disk('s3_profilephoto')->putFileAs('', $file, $filename);
+                } else {
+                    $file->move(public_path('uploads/profile_images'), $filename);
+                }
                 $profile->profile_image = $filename;
             }
 
@@ -581,14 +601,15 @@ class DashboardController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Profile completed successfully! You can now apply for jobs.',
-                'profile_completed' => true
+                'profile_completed' => true,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error completing profile:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error completing profile: ' . $e->getMessage()
+                'message' => 'Error completing profile: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -606,13 +627,14 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'education' => $education
+                'education' => $education,
             ]);
         } catch (\Exception $e) {
             Log::error('Error loading education:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading education.'
+                'message' => 'Error loading education.',
             ], 500);
         }
     }
@@ -621,14 +643,15 @@ class DashboardController extends Controller
     {
         try {
             $education = Education::where('user_id', Auth::id())->findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'education' => $education
+                'education' => $education,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Education not found.'
+                'message' => 'Education not found.',
             ], 404);
         }
     }
@@ -643,13 +666,13 @@ class DashboardController extends Controller
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after:start_date',
                 'is_current' => 'boolean',
-                'description' => 'nullable|string|max:500'
+                'description' => 'nullable|string|max:500',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -661,20 +684,21 @@ class DashboardController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->is_current ? null : $request->end_date,
                 'is_current' => $request->is_current ?? false,
-                'description' => $request->description
+                'description' => $request->description,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Education added successfully!',
-                'education' => $education
+                'education' => $education,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error adding education:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error adding education: ' . $e->getMessage()
+                'message' => 'Error adding education: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -691,13 +715,13 @@ class DashboardController extends Controller
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after:start_date',
                 'is_current' => 'boolean',
-                'description' => 'nullable|string|max:500'
+                'description' => 'nullable|string|max:500',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -708,20 +732,21 @@ class DashboardController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->is_current ? null : $request->end_date,
                 'is_current' => $request->is_current ?? false,
-                'description' => $request->description
+                'description' => $request->description,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Education updated successfully!',
-                'education' => $education
+                'education' => $education,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error updating education:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating education: ' . $e->getMessage()
+                'message' => 'Error updating education: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -734,14 +759,15 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Education deleted successfully!'
+                'message' => 'Education deleted successfully!',
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error deleting education:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting education: ' . $e->getMessage()
+                'message' => 'Error deleting education: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -759,13 +785,14 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'experiences' => $experiences
+                'experiences' => $experiences,
             ]);
         } catch (\Exception $e) {
             Log::error('Error loading work experiences:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading work experiences.'
+                'message' => 'Error loading work experiences.',
             ], 500);
         }
     }
@@ -774,14 +801,15 @@ class DashboardController extends Controller
     {
         try {
             $experience = WorkExperience::where('user_id', Auth::id())->findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'experience' => $experience
+                'experience' => $experience,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Work experience not found.'
+                'message' => 'Work experience not found.',
             ], 404);
         }
     }
@@ -797,13 +825,13 @@ class DashboardController extends Controller
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after:start_date',
                 'is_current' => 'boolean',
-                'description' => 'nullable|string|max:500'
+                'description' => 'nullable|string|max:500',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -816,20 +844,21 @@ class DashboardController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->is_current ? null : $request->end_date,
                 'is_current' => $request->is_current ?? false,
-                'description' => $request->description
+                'description' => $request->description,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Work experience added successfully!',
-                'experience' => $experience
+                'experience' => $experience,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error adding work experience:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error adding work experience: ' . $e->getMessage()
+                'message' => 'Error adding work experience: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -847,13 +876,13 @@ class DashboardController extends Controller
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after:start_date',
                 'is_current' => 'boolean',
-                'description' => 'nullable|string|max:500'
+                'description' => 'nullable|string|max:500',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -865,20 +894,21 @@ class DashboardController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->is_current ? null : $request->end_date,
                 'is_current' => $request->is_current ?? false,
-                'description' => $request->description
+                'description' => $request->description,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Work experience updated successfully!',
-                'experience' => $experience
+                'experience' => $experience,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error updating work experience:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating work experience: ' . $e->getMessage()
+                'message' => 'Error updating work experience: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -891,14 +921,15 @@ class DashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Work experience deleted successfully!'
+                'message' => 'Work experience deleted successfully!',
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error deleting work experience:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting work experience: ' . $e->getMessage()
+                'message' => 'Error deleting work experience: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -940,15 +971,15 @@ class DashboardController extends Controller
                     ] : null,
                     'education' => $user->education,
                     'work_experiences' => $user->workExperiences,
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting full profile:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error loading profile.'
+                'message' => 'Error loading profile.',
             ], 500);
         }
     }
-
 }
