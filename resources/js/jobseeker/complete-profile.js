@@ -718,7 +718,8 @@
                 processData: false,
                 contentType: false,
                 headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'Accept': 'application/json'
                 },
                 success: function(response) {
                     $('#submitProfileBtn').prop('disabled', false);
@@ -741,6 +742,14 @@
                     const message = serverMsg
                         ? serverMsg
                         : `Error completing profile (${xhr.status} ${xhr.statusText || 'Error'}). Please check console for details.`;
+
+                    if (xhr.status === 419) {
+                        showToast('error', 'Your session has expired. Reloading page...');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                        return;
+                    }
 
                     if (xhr.status === 422) {
                         const errors = (xhr.responseJSON && xhr.responseJSON.errors) ? xhr.responseJSON.errors : null;
