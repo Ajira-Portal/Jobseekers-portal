@@ -817,9 +817,14 @@ class ProfileController extends Controller
             ], 422);
         }
 
-        // Mark profile as complete
-        $profile->is_completed = true;
-        $profile->profile_completed = true;
+        // Mark profile as complete safely based on database schema
+        $columns = array_flip(Schema::getColumnListing($profile->getTable()));
+        if (isset($columns['is_completed'])) {
+            $profile->is_completed = true;
+        }
+        if (isset($columns['profile_completed'])) {
+            $profile->profile_completed = true;
+        }
         $profile->save();
 
         return response()->json([

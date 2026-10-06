@@ -1,13 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Storage;
-use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Employer\JobController as EmployerJobController;
 use App\Http\Controllers\Jobseeker\DashboardController as JobseekerDashboardController;
 use App\Http\Controllers\Jobseeker\ProfileController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 // ============================================
 // WELCOME PAGE & PUBLIC ROUTES
@@ -41,7 +41,7 @@ Route::get('/locations/wards', [ProfileController::class, 'getWards'])->name('lo
 Route::get('/locations/shehias', [ProfileController::class, 'getShehias'])->name('locations.shehias');
 
 Route::get('/language/switch/{locale}', function (Request $request, string $locale) {
-    if (!in_array($locale, ['sw', 'en'], true)) {
+    if (! in_array($locale, ['sw', 'en'], true)) {
         $locale = 'sw';
     }
 
@@ -51,9 +51,50 @@ Route::get('/language/switch/{locale}', function (Request $request, string $loca
 })->name('language.switch');
 
 Route::get('/storage/{path}', function (string $path) {
-    abort_unless(Storage::disk('public')->exists($path), 404);
+    if (Storage::disk('public')->exists($path)) {
+        return Storage::disk('public')->response($path);
+    }
 
-    return Storage::disk('public')->response($path);
+    $filename = basename($path);
+
+    if (str_starts_with($path, 'resumes/') || str_starts_with($path, 'uploads/resumes/')) {
+        if (Storage::disk('s3_resume')->exists($filename)) {
+            return Storage::disk('s3_resume')->response($filename);
+        }
+    }
+
+    if (str_starts_with($path, 'profile_images/') || str_starts_with($path, 'uploads/profile_images/')) {
+        if (Storage::disk('s3_profilephoto')->exists($filename)) {
+            return Storage::disk('s3_profilephoto')->response($filename);
+        }
+    }
+
+    if (str_starts_with($path, 'cover_letters/') || str_starts_with($path, 'uploads/cover_letters/')) {
+        if (Storage::disk('s3_coverletter')->exists($filename)) {
+            return Storage::disk('s3_coverletter')->response($filename);
+        }
+    }
+
+    if (str_starts_with($path, 'job_attachments/') || str_starts_with($path, 'uploads/job_attachments/')) {
+        if (Storage::disk('s3_jobattachments')->exists($filename)) {
+            return Storage::disk('s3_jobattachments')->response($filename);
+        }
+    }
+
+    if (str_starts_with($path, 'graduates/') || str_starts_with($path, 'uploads/graduates/')) {
+        if (Storage::disk('s3_graduates')->exists($filename)) {
+            return Storage::disk('s3_graduates')->response($filename);
+        }
+    }
+
+    if (Storage::disk('s3_resume')->exists($filename)) {
+        return Storage::disk('s3_resume')->response($filename);
+    }
+    if (Storage::disk('s3_profilephoto')->exists($filename)) {
+        return Storage::disk('s3_profilephoto')->response($filename);
+    }
+
+    abort(404);
 })->where('path', '.*')->name('storage.fallback');
 
 // ============================================
@@ -97,24 +138,22 @@ Route::middleware(['auth', 'prevent.back.history', 'isEmployer'])->prefix('emplo
     Route::post('/applications/{id}/status', [EmployerJobController::class, 'updateApplicationStatus']);
 });
 
-
-// JOBSEEKER ROUTES 
-
+// JOBSEEKER ROUTES
 
 Route::middleware(['auth', 'prevent.back.history', 'isJobseeker'])->prefix('jobseeker')->group(function () {
-    
+
     // Dashboard
     Route::get('/dashboard', [JobseekerDashboardController::class, 'index'])->name('jobseeker.dashboard');
-    
-    // Jobs 
+
+    // Jobs
     Route::get('/jobs', [JobseekerDashboardController::class, 'getJobs'])->name('jobseeker.jobs.index');
     Route::get('/jobs/{id}', [JobseekerDashboardController::class, 'getJobDetails'])->name('jobseeker.jobs.show');
     Route::get('/jobs/{id}/attachment', [JobseekerDashboardController::class, 'viewJobAttachment'])->name('jobseeker.jobs.attachment');
-    
+
     // Applications
     Route::get('/applications', [JobseekerDashboardController::class, 'getMyApplications'])->name('jobseeker.applications.index');
     Route::delete('/applications/{id}', [JobseekerDashboardController::class, 'withdrawApplication'])->name('jobseeker.applications.withdraw');
-    
+
     // Apply for job
     Route::post('/jobs/{id}/apply', [JobseekerDashboardController::class, 'apply'])->name('jobseeker.jobs.apply');
     // Profile Routes
@@ -125,37 +164,33 @@ Route::middleware(['auth', 'prevent.back.history', 'isJobseeker'])->prefix('jobs
     Route::get('/profile/resume', [ProfileController::class, 'viewResume'])->name('profile.resume.view');
     Route::get('/profile/profile-image', [ProfileController::class, 'viewProfileImage'])->name('profile.image.view');
     Route::post('/profile/fetch-zanid', [ProfileController::class, 'fetchZanId'])->name('profile.fetch-zanid');
-    
-    // AJAX Routes 
+
+    // AJAX Routes
     Route::get('/get-districts', [ProfileController::class, 'getDistricts'])->name('get-districts');
     Route::get('/get-wards', [ProfileController::class, 'getWards'])->name('get-wards');
     Route::get('/get-shehias', [ProfileController::class, 'getShehias'])->name('get-shehias');
-    
-    // Education Routes 
+
+    // Education Routes
     Route::get('/education', [ProfileController::class, 'getEducation'])->name('education');
     Route::get('/education/{id}', [ProfileController::class, 'getEducationItem'])->name('education.item');
     Route::post('/education', [ProfileController::class, 'storeEducation'])->name('education.store');
     Route::put('/education/{id}', [ProfileController::class, 'updateEducation'])->name('education.update');
     Route::delete('/education/{id}', [ProfileController::class, 'deleteEducation'])->name('education.delete');
-    
+
     // Skills Routes
     Route::post('/skills', [ProfileController::class, 'storeSkill'])->name('skills.store');
     Route::post('/skills/save', [ProfileController::class, 'saveSkills'])->name('skills.save');
     Route::delete('/skills/{id}', [ProfileController::class, 'deleteSkill'])->name('skills.delete');
-    
-    //Work Experience Routes 
+
+    // Work Experience Routes
     Route::get('/work-experiences', [ProfileController::class, 'getWorkExperiences'])->name('work-experiences');
     Route::post('/work-experience', [ProfileController::class, 'storeWorkExperience'])->name('work-experience.store');
     Route::put('/work-experience/{id}', [ProfileController::class, 'updateWorkExperience'])->name('work-experience.update');
     Route::delete('/work-experience/{id}', [ProfileController::class, 'deleteWorkExperience'])->name('work-experience.delete');
 
-
-
-    });
-
+});
 
 // ADMIN ROUTES
-
 
 Route::middleware(['auth', 'prevent.back.history', 'isAdmin'])->prefix('admin')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
@@ -178,7 +213,7 @@ Route::middleware(['auth', 'prevent.back.history', 'isAdmin'])->prefix('admin')-
     Route::put('/graduates/{id}', [AdminDashboardController::class, 'updateGraduate'])->name('admin.graduates.update');
     Route::delete('/graduates/{id}', [AdminDashboardController::class, 'deleteGraduate'])->name('admin.graduates.delete');
     Route::post('/graduates/import', [AdminDashboardController::class, 'importGraduates'])->name('admin.graduates.import');
-    
+
     // User Management
     Route::get('/users', [AdminDashboardController::class, 'getUsers'])->name('admin.users');
     Route::get('/users/{id}', [AdminDashboardController::class, 'getUser'])->name('admin.user.show');
@@ -186,7 +221,7 @@ Route::middleware(['auth', 'prevent.back.history', 'isAdmin'])->prefix('admin')-
     Route::put('/users/{id}', [AdminDashboardController::class, 'updateUser'])->name('admin.user.update');
     Route::delete('/users/{id}', [AdminDashboardController::class, 'deleteUser'])->name('admin.user.delete');
     Route::patch('/users/{id}/toggle-status', [AdminDashboardController::class, 'toggleUserStatus'])->name('admin.user.toggle-status');
-    
+
     // Reports
     Route::post('/reports/generate', [AdminDashboardController::class, 'generateReport'])->name('admin.reports.generate');
 });

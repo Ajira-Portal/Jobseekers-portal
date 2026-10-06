@@ -1,4 +1,5 @@
 <?php
+
 // app/Models/JobseekerProfile.php
 
 namespace App\Models;
@@ -30,7 +31,7 @@ class JobseekerProfile extends Model
         'shehia_id',
         'resume',
         'profile_image',
-        
+
         'skills',
         'is_completed',
         'profile_completed',
@@ -104,12 +105,12 @@ class JobseekerProfile extends Model
 
     public function getResumeUrlAttribute()
     {
-        return $this->resume ? asset('storage/resumes/' . $this->resume) : null;
+        return $this->resume ? url('/storage/resumes/'.$this->resume) : null;
     }
 
     public function getProfileImageUrlAttribute()
     {
-        return $this->profile_image ? asset('storage/profile_images/' . $this->profile_image) : null;
+        return $this->profile_image ? url('/storage/profile_images/'.$this->profile_image) : null;
     }
 
     public function getFullNameAttribute()
@@ -122,5 +123,3 @@ class JobseekerProfile extends Model
         return $this->user ? $this->user->email : '';
     }
 }
-
-
