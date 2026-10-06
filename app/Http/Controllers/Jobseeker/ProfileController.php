@@ -776,44 +776,46 @@ class ProfileController extends Controller
     public function completeProfile(Request $request)
     {
         $user = Auth::user();
-        $profile = $user->jobseekerProfile;
-
-        if (! $profile) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please complete your personal information first.',
-            ], 422);
+                'message' => 'User not authenticated.',
+            ], 401);
         }
 
-        // Check if all required fields are filled
-        $hasRequiredFields = $profile->phone &&
-                    $profile->date_of_birth &&
-                    $profile->region_id &&
-                    $profile->district_id &&
-                    $profile->ward_id &&
-                    $profile->shehia_id;
+        $profile = JobseekerProfile::firstOrCreate(
+            ['user_id' => $user->id],
+            ['user_id' => $user->id]
+        );
+
+        // Check if all required personal fields are filled
+        $hasRequiredFields = ! empty($profile->phone) &&
+                    ! empty($profile->date_of_birth) &&
+                    ! empty($profile->region_id) &&
+                    ! empty($profile->district_id) &&
+                    ! empty($profile->ward_id) &&
+                    ! empty($profile->shehia_id);
 
         if (! $hasRequiredFields) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please complete your personal information first.',
+                'message' => 'Please complete all required personal information (Step 1) first.',
             ], 422);
         }
 
         $hasEducation = Education::where('user_id', $user->id)->exists();
-        $hasSkills = count($this->getUserSkillsArray($user->id, $profile)) > 0;
-
         if (! $hasEducation) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please add at least one education entry.',
+                'message' => 'Please add at least one education entry (Step 2).',
             ], 422);
         }
 
+        $hasSkills = count($this->getUserSkillsArray($user->id, $profile)) > 0;
         if (! $hasSkills) {
             return response()->json([
                 'success' => false,
-                'message' => 'Please add at least one skill.',
+                'message' => 'Please select or add at least one skill (Step 3).',
             ], 422);
         }
 

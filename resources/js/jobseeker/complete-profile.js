@@ -735,19 +735,24 @@
                     $('#submitProfileBtn').prop('disabled', false);
                     $('#submitProfileBtn').html('<i class="fas fa-check me-2"></i> Complete Profile');
 
+                    const message = (xhr.responseJSON && xhr.responseJSON.message)
+                        ? xhr.responseJSON.message
+                        : 'Error completing profile. Please try again.';
+
                     if (xhr.status === 422) {
-                        const errors = xhr.responseJSON.errors;
-                        Object.keys(errors).forEach(key => {
-                            const field = $(`#${key}`);
-                            if (field.length) {
-                                field.addClass('is-invalid');
-                                $(`#${key}Error`).text(errors[key][0]);
-                            }
-                        });
-                        goToStep(1);
-                        showToast('error', 'Please fix the validation errors.');
+                        const errors = (xhr.responseJSON && xhr.responseJSON.errors) ? xhr.responseJSON.errors : null;
+                        if (errors && typeof errors === 'object') {
+                            Object.keys(errors).forEach(key => {
+                                const field = $(`#${key}`);
+                                if (field.length) {
+                                    field.addClass('is-invalid');
+                                    $(`#${key}Error`).text(errors[key][0]);
+                                }
+                            });
+                        }
+                        showToast('error', message);
                     } else {
-                        showToast('error', 'Error completing profile. Please try again.');
+                        showToast('error', message);
                     }
                 }
             });
