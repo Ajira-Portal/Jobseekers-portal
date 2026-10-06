@@ -712,7 +712,7 @@
             $('#submitProfileBtn').html('<span class="spinner-border spinner-border-sm me-2"></span> Saving...');
 
             $.ajax({
-                url: '/jobseeker/complete-profile',
+                url: '/jobseeker/profile/complete',
                 type: 'POST',
                 data: formData,
                 processData: false,

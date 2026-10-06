@@ -775,71 +775,99 @@ class ProfileController extends Controller
      */
     public function completeProfile(Request $request)
     {
-        $user = Auth::user();
-        if (! $user) {
+        try {
+            Log::info('=== START COMPLETE PROFILE ===', ['user_id' => Auth::id(), 'request' => $request->all()]);
+            $user = Auth::user();
+            if (! $user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated.',
+                ], 401);
+            }
+
+            $profile = JobseekerProfile::firstOrCreate(
+                ['user_id' => $user->id],
+                ['user_id' => $user->id]
+            );
+
+            // If skills were supplied in request, save them automatically
+            if ($request->has('skills')) {
+                $rawSkills = is_array($request->skills) ? $request->skills : explode(',', (string) $request->skills);
+                $this->saveUserSkills($user->id, $rawSkills, $profile);
+                $profile->refresh();
+            }
+
+            // Check if all required personal fields are filled
+            $hasRequiredFields = ! empty($profile->phone) &&
+                        ! empty($profile->date_of_birth) &&
+                        ! empty($profile->region_id) &&
+                        ! empty($profile->district_id) &&
+                        ! empty($profile->ward_id) &&
+                        ! empty($profile->shehia_id);
+
+            if (! $hasRequiredFields) {
+                Log::warning('Complete profile check failed: missing required step 1 fields', [
+                    'phone' => $profile->phone,
+                    'dob' => $profile->date_of_birth,
+                    'region_id' => $profile->region_id,
+                    'district_id' => $profile->district_id,
+                    'ward_id' => $profile->ward_id,
+                    'shehia_id' => $profile->shehia_id,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please complete all required personal information (Step 1) first.',
+                ], 422);
+            }
+
+            $hasEducation = Education::where('user_id', $user->id)->exists();
+            if (! $hasEducation) {
+                Log::warning('Complete profile check failed: no education record found');
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please add at least one education entry (Step 2).',
+                ], 422);
+            }
+
+            $userSkills = $this->getUserSkillsArray($user->id, $profile);
+            if (count($userSkills) === 0) {
+                Log::warning('Complete profile check failed: no skills found');
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please select or add at least one skill (Step 3).',
+                ], 422);
+            }
+
+            // Mark profile as complete safely based on database schema
+            $columns = array_flip(Schema::getColumnListing($profile->getTable()));
+            if (isset($columns['is_completed'])) {
+                $profile->is_completed = true;
+            }
+            if (isset($columns['profile_completed'])) {
+                $profile->profile_completed = true;
+            }
+            $profile->save();
+
+            Log::info('=== PROFILE COMPLETED SUCCESSFULLY ===', ['user_id' => $user->id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile completed successfully!',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('=== ERROR IN COMPLETE PROFILE ===', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'User not authenticated.',
-            ], 401);
+                'message' => 'Error completing profile: '.$e->getMessage(),
+            ], 500);
         }
-
-        $profile = JobseekerProfile::firstOrCreate(
-            ['user_id' => $user->id],
-            ['user_id' => $user->id]
-        );
-
-        // If skills were supplied in request, save them automatically
-        if ($request->has('skills')) {
-            $rawSkills = is_array($request->skills) ? $request->skills : explode(',', (string) $request->skills);
-            $this->saveUserSkills($user->id, $rawSkills, $profile);
-            $profile->refresh();
-        }
-
-        // Check if all required personal fields are filled
-        $hasRequiredFields = ! empty($profile->phone) &&
-                    ! empty($profile->date_of_birth) &&
-                    ! empty($profile->region_id) &&
-                    ! empty($profile->district_id) &&
-                    ! empty($profile->ward_id) &&
-                    ! empty($profile->shehia_id);
-
-        if (! $hasRequiredFields) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please complete all required personal information (Step 1) first.',
-            ], 422);
-        }
-
-        $hasEducation = Education::where('user_id', $user->id)->exists();
-        if (! $hasEducation) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please add at least one education entry (Step 2).',
-            ], 422);
-        }
-
-        $hasSkills = count($this->getUserSkillsArray($user->id, $profile)) > 0;
-        if (! $hasSkills) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please select or add at least one skill (Step 3).',
-            ], 422);
-        }
-
-        // Mark profile as complete safely based on database schema
-        $columns = array_flip(Schema::getColumnListing($profile->getTable()));
-        if (isset($columns['is_completed'])) {
-            $profile->is_completed = true;
-        }
-        if (isset($columns['profile_completed'])) {
-            $profile->profile_completed = true;
-        }
-        $profile->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Profile completed successfully!',
-        ]);
     }
 
     /**
