@@ -735,9 +735,12 @@
                     $('#submitProfileBtn').prop('disabled', false);
                     $('#submitProfileBtn').html('<i class="fas fa-check me-2"></i> Complete Profile');
 
-                    const message = (xhr.responseJSON && xhr.responseJSON.message)
-                        ? xhr.responseJSON.message
-                        : 'Error completing profile. Please try again.';
+                    console.error('[Complete Profile AJAX Error]', xhr.status, xhr.statusText, xhr.responseText);
+
+                    const serverMsg = xhr.responseJSON?.message;
+                    const message = serverMsg
+                        ? serverMsg
+                        : `Error completing profile (${xhr.status} ${xhr.statusText || 'Error'}). Please check console for details.`;
 
                     if (xhr.status === 422) {
                         const errors = (xhr.responseJSON && xhr.responseJSON.errors) ? xhr.responseJSON.errors : null;
