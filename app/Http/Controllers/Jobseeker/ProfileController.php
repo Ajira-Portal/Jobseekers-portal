@@ -788,6 +788,13 @@ class ProfileController extends Controller
             ['user_id' => $user->id]
         );
 
+        // If skills were supplied in request, save them automatically
+        if ($request->has('skills')) {
+            $rawSkills = is_array($request->skills) ? $request->skills : explode(',', (string) $request->skills);
+            $this->saveUserSkills($user->id, $rawSkills, $profile);
+            $profile->refresh();
+        }
+
         // Check if all required personal fields are filled
         $hasRequiredFields = ! empty($profile->phone) &&
                     ! empty($profile->date_of_birth) &&
@@ -1056,20 +1063,25 @@ class ProfileController extends Controller
     }
 
     /**
-     * Returns normalized skills from either profile column or dedicated skills table.
+     * Returns normalized skills from both profile column and dedicated skills table.
      */
     private function getUserSkillsArray(int $userId, ?JobseekerProfile $profile = null): array
     {
-        if ($profile && Schema::hasColumn($profile->getTable(), 'skills')) {
-            $skills = $profile->skills ? array_map('trim', explode(',', $profile->skills)) : [];
-        } else {
-            $skills = Skill::where('user_id', $userId)
+        $skillsFromProfile = [];
+        if ($profile && Schema::hasColumn($profile->getTable(), 'skills') && $profile->skills) {
+            $skillsFromProfile = array_map('trim', explode(',', $profile->skills));
+        }
+
+        $skillsFromTable = [];
+        if (Schema::hasTable('skills')) {
+            $skillsFromTable = Skill::where('user_id', $userId)
                 ->orderBy('id')
                 ->pluck('skills_name')
                 ->toArray();
-            $skills = array_map('trim', $skills);
+            $skillsFromTable = array_map('trim', $skillsFromTable);
         }
 
+        $skills = array_merge($skillsFromProfile, $skillsFromTable);
         $normalized = [];
         foreach ($skills as $skill) {
             if ($skill === '') {
@@ -1089,7 +1101,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Persists normalized skills in whichever schema is available.
+     * Persists normalized skills in both jobseeker_profiles table and skills table.
      */
     private function saveUserSkills(int $userId, array $skills, ?JobseekerProfile $profile = null): void
     {
@@ -1097,22 +1109,26 @@ class ProfileController extends Controller
             return $value !== '';
         }));
 
-        if ($profile && Schema::hasColumn($profile->getTable(), 'skills')) {
-            $profile->skills = implode(', ', $skills);
-            $profile->save();
-
-            return;
+        if (! $profile) {
+            $profile = JobseekerProfile::firstOrCreate(['user_id' => $userId]);
         }
 
-        DB::transaction(function () use ($userId, $skills) {
-            Skill::where('user_id', $userId)->delete();
-            foreach ($skills as $skill) {
-                Skill::create([
-                    'user_id' => $userId,
-                    'skills_name' => $skill,
-                    'is_custom' => true,
-                ]);
-            }
-        });
+        if (Schema::hasColumn($profile->getTable(), 'skills')) {
+            $profile->skills = implode(', ', $skills);
+            $profile->save();
+        }
+
+        if (Schema::hasTable('skills')) {
+            DB::transaction(function () use ($userId, $skills) {
+                Skill::where('user_id', $userId)->delete();
+                foreach ($skills as $skill) {
+                    Skill::create([
+                        'user_id' => $userId,
+                        'skills_name' => $skill,
+                        'is_custom' => true,
+                    ]);
+                }
+            });
+        }
     }
 }
