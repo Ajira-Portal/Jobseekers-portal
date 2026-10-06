@@ -585,12 +585,17 @@ $(document).ready(function() {
             }
 
             const saveBtn = $('#saveSkillsBtn');
-            const originalHtml = saveBtn.html();
-            saveBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span> Saving...');
+            const hasSaveBtn = saveBtn.length > 0;
+            const originalHtml = hasSaveBtn ? saveBtn.html() : '';
+            if (hasSaveBtn) {
+                saveBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span> Saving...');
+            }
 
             window.jobseekerApi.saveSkills(skills)
                 .done(function(response) {
-                    saveBtn.prop('disabled', false).html(originalHtml);
+                    if (hasSaveBtn) {
+                        saveBtn.prop('disabled', false).html(originalHtml);
+                    }
                     if (response.success) {
                         const normalizedSkills = response.skills || skills;
                         renderSelectedSkillsFromInput(normalizedSkills);
@@ -604,7 +609,10 @@ $(document).ready(function() {
                     }
                 })
                 .fail(function(xhr) {
-                    saveBtn.prop('disabled', false).html(originalHtml);
+                    if (hasSaveBtn) {
+                        saveBtn.prop('disabled', false).html(originalHtml);
+                    }
+                    console.error('saveSkills AJAX error:', xhr.status, xhr.responseText);
                     if (xhr.status === 422 && xhr.responseJSON?.errors?.skills) {
                         $('#skillsInput').addClass('is-invalid');
                         $('#skillsInputError').text(xhr.responseJSON.errors.skills[0]);
@@ -1726,6 +1734,7 @@ $(document).ready(function() {
                     .fail(function(xhr) {
                         $('#submitProfileBtn').prop('disabled', false);
                         $('#submitProfileBtn').html('<i class="fas fa-check me-2"></i> Complete Profile');
+                        console.error('completeProfile AJAX error:', xhr.status, xhr.responseText);
 
                         if (xhr.status === 422) {
                             if (xhr.responseJSON?.errors) {
@@ -1740,7 +1749,8 @@ $(document).ready(function() {
                             }
                             showToast('error', xhr.responseJSON?.message || 'Please fix the validation errors.');
                         } else {
-                            showToast('error', xhr.responseJSON?.message || 'Error completing profile. Please try again.');
+                            const errDetail = xhr.responseJSON?.message ? `: ${xhr.responseJSON.message}` : '';
+                            showToast('error', `Error completing profile${errDetail}. Please check browser console.`);
                         }
                     });
             }, true);
