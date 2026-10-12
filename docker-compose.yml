@@ -33,12 +33,14 @@ services:
       - app
 
     ports:
-      - "9092:80"
+      - "9092:443"
 
     volumes:
       - laravel-storage:/var/www/html/storage:ro
       - ./storage/certificate:/var/www/html/storage/certificate:ro
       - vite-build:/var/www/html/public/build:ro
+      - /etc/ssl/uwezeshaji/vijanasmz_go_tz.crt:/etc/nginx/ssl/server.crt:ro
+      - /etc/ssl/uwezeshaji/vijanasmz_go_tz.key:/etc/nginx/ssl/server.key:ro
 
     networks:
       - jobseekers-network
