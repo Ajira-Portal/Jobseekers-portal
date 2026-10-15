@@ -42,8 +42,8 @@ services:
       - laravel-storage:/var/www/html/storage:ro
       - ./storage/certificate:/var/www/html/storage/certificate:ro
       - vite-build:/var/www/html/public/build:ro
-      - /etc/ssl/uwezeshaji/vijanasmz_fullchain.crt:/etc/nginx/ssl/server.crt:ro
-      - /etc/ssl/uwezeshaji/vijanasmz.go.tz.key:/etc/nginx/ssl/server.key:ro
+      # - /etc/ssl/uwezeshaji/vijanasmz_fullchain.crt:/etc/nginx/ssl/server.crt:ro
+      # - /etc/ssl/uwezeshaji/vijanasmz.go.tz.key:/etc/nginx/ssl/server.key:ro
 
     networks:
       - jobseekers-network
