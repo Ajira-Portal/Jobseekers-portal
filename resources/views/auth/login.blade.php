@@ -529,7 +529,7 @@ html {
                         <input type="password" class="form-control" id="password" name="password" 
                                placeholder="Enter your password" required>
                         <button class="password-toggle" type="button" id="togglePassword" tabindex="-1">
-                            <i class="fas fa-eye"></i>
+                            
                         </button>
                     </div>
                     <div class="invalid-feedback" id="passwordError"></div>
