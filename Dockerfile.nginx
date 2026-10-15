@@ -1,35 +1,10 @@
-# # Stage 1: Build Vite frontend assets
-# FROM node:24-alpine AS frontend
-
-# WORKDIR /var/www/html
-
-# # Copy package files first for caching
-# COPY package*.json ./
-
-# # Install Node dependencies
-# RUN npm ci
-
-# # Copy files required by Vite
-# COPY resources ./resources
-# COPY vite.config.* ./
-# COPY public ./public  
-
-# # Build production assets
-# RUN npm run build
-
-
 
 FROM nginx:1.27-alpine
 
 WORKDIR /var/www/html
 
-# Copy Laravel public directory (static assets)
 COPY public ./public
 
-# Copy Vite production assets from frontend build stage
-COPY --from=frontend /var/www/html/public/build ./public/build
-
-# Copy Nginx configuration
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 9092
