@@ -770,6 +770,10 @@ $(document).ready(function() {
                             savedProfileImageUrl = profileImageViewUrl;
                             renderProfileImagePreview(getFreshProfileImageUrl(), 'Current photo uploaded');
                         }
+                        if (resumeFile && response.data && response.data.resume) {
+                            const resumeLink = $('<a>', { href: dashboardConfig.dataset.savedResumeUrl || '/jobseeker/profile/resume', target: '_blank', text: response.data.resume });
+                            $('#resumePreviewContainer').empty().append($('<small class="text-muted d-block mb-2">').text('click to view ').append(resumeLink));
+                        }
                         showToast('success', response.message || 'General information saved.');
                         done(true);
                     } else {
@@ -1053,6 +1057,7 @@ $(document).ready(function() {
                     <div class="card-body-custom">
                         <div class="job-meta">
                             <span><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+                            <span><i class="fas fa-hourglass-end"></i> Deadline: ${job.application_deadline ? new Date(job.application_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No deadline'}</span>
                             <span><i class="fas fa-clock"></i> ${job.employment_type}</span>
                             <span><i class="fas fa-calendar-alt"></i> Posted: ${date}</span>
                         </div>
@@ -1589,7 +1594,7 @@ $(document).ready(function() {
                 <head>
                     <meta charset="UTF-8">
                     <title>Profile - ${user.name}</title>
-                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <link href="${window.location.origin}/css/bootstrap.min.css" rel="stylesheet">
                     <style>
                         @page { size: A4; margin: 12mm; }
                         body { padding: 0; background: #fff; font-family: 'Inter', sans-serif; color: #0f172a; font-size: 12px; }

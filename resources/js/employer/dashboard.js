@@ -397,10 +397,10 @@
                     <div class="card-body-custom">
                         <div class="job-meta">
                             <span><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+                            <span><i class="fas fa-hourglass-end"></i> Deadline: ${job.application_deadline ? new Date(job.application_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No deadline'}</span>
                             <span><i class="fas fa-clock"></i> ${formatEmploymentType(job.employment_type)}</span>
                            
                             <span><i class="fas fa-calendar-alt"></i> Posted: ${date}</span>
-                            ${job.application_deadline ? `<span><i class="fas fa-hourglass-end"></i> Deadline: ${new Date(job.application_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>` : ''}
                         </div>
                         <div class="job-description">
                             ${job.description ? job.description.substring(0, 200) + (job.description.length > 200 ? '...' : '') : ''}
@@ -820,7 +820,6 @@
                     const applicant = response.application.applicant;
                     const skills = applicant.skills || [];
                     const education = applicant.education || [];
-                    const experiences = applicant.work_experiences || [];
 
                     const avatar = applicant.profile_image_url
                         ? `<img src="${applicant.profile_image_url}" alt="${applicant.name}" class="rounded-circle border" style="width:120px;height:120px;object-fit:cover;">`
@@ -848,17 +847,6 @@
                             </div>
                         `).join('')
                         : '<div class="text-muted">No education details available.</div>';
-
-                    const experienceHtml = experiences.length
-                        ? experiences.map(item => `
-                            <div class="border rounded-3 p-3 mb-2 bg-light">
-                                <div class="fw-semibold">${item.position || 'N/A'}</div>
-                                <div class="text-muted small">${item.company_name || 'N/A'}${item.location ? ' • ' + item.location : ''}</div>
-                                <div class="small text-muted">${item.employment_type_label || ''}${item.duration ? ' • ' + item.duration : ''}</div>
-                                <div class="small mt-2">${item.description || ''}</div>
-                            </div>
-                        `).join('')
-                        : '<div class="text-muted">No work experience details available.</div>';
 
                     const html = `
                         <div class="row g-4">
@@ -925,14 +913,9 @@
                                     ${skillsHtml}
                                 </div>
 
-                                <div class="border rounded-3 p-3 mb-3">
+                                <div class="border rounded-3 p-3">
                                     <h6 class="fw-bold mb-3"><i class="fas fa-graduation-cap me-2"></i>Education</h6>
                                     ${educationHtml}
-                                </div>
-
-                                <div class="border rounded-3 p-3">
-                                    <h6 class="fw-bold mb-3"><i class="fas fa-briefcase me-2"></i>Work Experience</h6>
-                                    ${experienceHtml}
                                 </div>
                             </div>
                         </div>

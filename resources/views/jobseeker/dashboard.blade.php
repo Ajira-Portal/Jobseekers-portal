@@ -7,9 +7,11 @@
     @vite([ 'resources/css/app.css', 'resources/js/app.js' ])
     <title>Jobseeker Dashboard - JobPortal</title>
     <link rel="icon" type="image/png" href="{{ asset('images/emblem.png') }}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="{{ asset('webfonts/fa-solid-900.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ asset('webfonts/fa-regular-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/all.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/fonts.css') }}" rel="stylesheet">
     <style>
         :root {
             --primary: #4F46E5;
@@ -1890,11 +1892,8 @@ body {
                                         <div class="col-md-6 mb-3">
                                             <label for="resident_number" class="form-label">Zanzibar Resident Number <span class="text-danger">*</span></label>
                                             <div class="input-group">
-                                                <input type="text" class="form-control" id="resident_number" name="resident_number"
-                                                       value="{{ $profile->resident_number ?? '' }}" placeholder="Your Zanzibari Resident Number" required>
-                                                <button type="button" class="btn btn-outline-primary" id="btnVerifyZanId">
-                                                    <i class="fas fa-id-card me-1"></i> Verify ZANID
-                                                </button>
+                                                <input type="text" class="form-control bg-light" id="resident_number" name="resident_number"
+                                                       value="{{ $profile->resident_number ?: Auth::user()->zan_id }}" readonly>
                                             </div>
                                             <div class="invalid-feedback d-block" id="residentNumberError"></div>
                                         </div>
@@ -1915,7 +1914,7 @@ body {
                                         <div class="col-md-6 mb-3">
                                             <label for="phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" id="phone" name="phone" 
-                                                   value="{{ $profile->phone ?? '' }}">
+                                                   value="{{ $profile->phone ?: Auth::user()->phone }}">
                                             <div class="invalid-feedback" id="phoneError"></div>
                                         </div>
                                         <div class="col-md-6 mb-3">
@@ -2455,7 +2454,7 @@ body {
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ asset('js/jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 </body>
 </html>

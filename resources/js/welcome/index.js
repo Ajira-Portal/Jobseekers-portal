@@ -1,6 +1,11 @@
 import './api.js';
 
 $(document).ready(function() {
+            // This script is only for the public welcome page; skip it on every other page.
+            if (!document.getElementById('graduateRegisterModal')) {
+                return;
+            }
+
             const bodyData = document.body.dataset;
             const isLoggedIn = bodyData.isAuthenticated === '1';
             const loginUrl = bodyData.loginUrl || '/login';
@@ -18,6 +23,76 @@ $(document).ready(function() {
             // Submit graduate registration from welcome page
             $('#submitGraduateRegisterBtn').on('click', function() {
                 submitGraduateRegistration();
+            });
+
+            let graduateZanIdVerified = false;
+
+            $('#gradResidentNumber').on('input', function() {
+                graduateZanIdVerified = false;
+                $('#gradResidentNumber').removeClass('is-invalid is-valid');
+                $('#gradResidentNumberError').text('').removeClass('d-block');
+                $('#gradFullName, #gradPlaceBirth, #gradDob').val('').removeClass('is-valid');
+                $('input[name="gender"]').prop('checked', false).removeClass('is-valid');
+            });
+
+            $('#verifyGradResidentNumberBtn').on('click', function() {
+                const $residentNumber = $('#gradResidentNumber');
+                const residentNumber = ($residentNumber.val() || '').trim();
+                const $button = $(this);
+
+                graduateZanIdVerified = false;
+                $residentNumber.removeClass('is-invalid is-valid');
+                $('#gradResidentNumberError').text('').removeClass('d-block');
+
+                if (!/^[0-9]{1,12}$/.test(residentNumber)) {
+                    $residentNumber.addClass('is-invalid');
+                    $('#gradResidentNumberError').text('The ZAN ID must contain only digits (up to 12 digits).').addClass('d-block');
+                    showToast('error', 'Please enter a valid ZAN ID.');
+                    return;
+                }
+
+                $button.prop('disabled', true);
+                $button.find('.btn-content').html('<span class="spinner-border spinner-border-sm me-1"></span> Verifying...');
+
+                const verifyUrl = $('#graduateRegisterForm').data('verify-url') || '/register/verify-id';
+                window.authApi.verifyZanId(verifyUrl, { zan_id: residentNumber })
+                    .done(function(response) {
+                        if (($residentNumber.val() || '').trim() !== residentNumber) {
+                            return;
+                        }
+
+                        const citizen = response.citizen;
+                        if (!response.success || !citizen) {
+                            showToast('error', response.message || 'Verification failed.');
+                            return;
+                        }
+
+                        $('#gradFullName').val(citizen.name || '');
+                        $('#gradDob').val(citizen.date_of_birth || '');
+                        $('#gradPlaceBirth').val(citizen.place_of_birth || '');
+                        if (citizen.gender) {
+                            $(`input[name="gender"][value="${citizen.gender}"]`).prop('checked', true);
+                        }
+                        $residentNumber.addClass('is-valid');
+                        graduateZanIdVerified = true;
+                        showToast('success', response.message || 'ZAN ID verified successfully.');
+                    })
+                    .fail(function(xhr) {
+                        if (($residentNumber.val() || '').trim() !== residentNumber) {
+                            return;
+                        }
+
+                        const message = xhr.responseJSON?.message
+                            || xhr.responseJSON?.errors?.zan_id?.[0]
+                            || 'Unable to verify the ZAN ID. Please try again.';
+                        $residentNumber.addClass('is-invalid');
+                        $('#gradResidentNumberError').text(message).addClass('d-block');
+                        showToast('error', message);
+                    })
+                    .always(function() {
+                        $button.prop('disabled', false);
+                        $button.find('.btn-content').html('<i class="fas fa-shield-halved"></i> Verify');
+                    });
             });
 
             // Section B education type toggle
@@ -108,6 +183,7 @@ $(document).ready(function() {
                                             </div>
                                             <div class="job-meta">
                                                 <span><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+                                                <span><i class="fas fa-hourglass-end"></i> Deadline: ${job.application_deadline ? new Date(job.application_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No deadline'}</span>
                                                 <span><i class="fas fa-clock"></i> ${job.employment_type}</span>
                                                 ${job.salary_range ? `<span><i class="fas fa-dollar-sign"></i> ${job.salary_range}</span>` : ''}
                                                 <span><i class="fas fa-calendar-alt"></i> Posted: ${date}</span>
@@ -272,6 +348,13 @@ $(document).ready(function() {
             function submitGraduateRegistration() {
                 const $btn = $('#submitGraduateRegisterBtn');
                 const form = $('#graduateRegisterForm')[0];
+                if (!graduateZanIdVerified) {
+                    $('#gradResidentNumber').addClass('is-invalid');
+                    $('#gradResidentNumberError').text('Please verify your ZAN ID first.').addClass('d-block');
+                    showToast('error', 'Please verify your ZAN ID before submitting the form.');
+                    return;
+                }
+
                 const requiredFields = form.querySelectorAll('input[required], select[required], textarea[required]');
                 let allFilled = true;
 
@@ -307,6 +390,9 @@ $(document).ready(function() {
                         if (response.success) {
                             $('#graduateRegisterModal').modal('hide');
                             form.reset();
+                            graduateZanIdVerified = false;
+                            $('#gradResidentNumber').removeClass('is-valid is-invalid');
+                            $('#gradResidentNumberError').text('').removeClass('d-block');
                             updateEducationSection('');
                             $('#gradDistrict').html('<option value="">Select District</option>').prop('disabled', true);
                             $('#gradWard').html('<option value="">Select Ward</option>').prop('disabled', true);

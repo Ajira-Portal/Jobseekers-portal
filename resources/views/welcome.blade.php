@@ -7,9 +7,11 @@
   @vite(['resources/css/app.css', 'resources/js/app.js'])
     <title>Jobseeker's Portal</title>
     <link rel="icon" type="image/png" href="{{ asset('images/emblem.png') }}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="preload" href="{{ asset('webfonts/fa-solid-900.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ asset('webfonts/fa-regular-400.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link href="{{ asset('css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/all.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/fonts.css') }}" rel="stylesheet">
     <style>
         :root {
             --primary: #4F46E5;
@@ -1106,14 +1108,20 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="graduateRegisterForm">
+                    <form id="graduateRegisterForm" data-verify-url="{{ route('register.verify-id') }}">
                         <div class="form-section-card">
                             <h6 class="section-heading">Section A - Personal Identification</h6>
 
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="gradResidentNumber" class="form-label">Zanzibar Resident Number</label>
-                                    <input type="text" class="form-control" id="gradResidentNumber" name="resident_number" placeholder="Your Zanzibar Resident Number" required>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="gradResidentNumber" name="resident_number" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Your Zanzibar Resident Number" required>
+                                        <button type="button" class="btn btn-outline-primary" id="verifyGradResidentNumberBtn">
+                                            <span class="btn-content"><i class="fas fa-shield-halved"></i> Verify</span>
+                                        </button>
+                                    </div>
+                                    <div class="invalid-feedback" id="gradResidentNumberError"></div>
                                 </div>
                                 
                                 <div class="col-md-6">
@@ -1124,7 +1132,7 @@
                                     <label class="form-label d-block">Gender</label>
                                     <div class="d-flex gap-4 pt-1">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="gender" id="gradGenderMale" value="Male" checked required>
+                                            <input class="form-check-input" type="radio" name="gender" id="gradGenderMale" value="Male" required>
                                             <label class="form-check-label" for="gradGenderMale">Male</label>
                                         </div>
                                         <div class="form-check">
@@ -1273,8 +1281,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ asset('js/jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     @vite(['resources/js/app.js'])
 </body>
 </html>

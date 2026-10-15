@@ -20,6 +20,9 @@ services:
 
     networks:
       - jobseekers-network
+      - jobportal-db-network
+      - shared-storage-network
+      
     #network_mode: host
 
   nginx:
@@ -68,6 +71,7 @@ services:
 
     networks:
       - jobseekers-network
+      - jobportal-db-network
 
 volumes:
   postgres-data:
@@ -77,3 +81,11 @@ volumes:
 networks:
   jobseekers-network:
     driver: bridge
+  
+  jobportal-db-network:
+    external: true
+    name: jobportal-db-network
+
+  shared-storage-network:
+    external: true
+    name: shared-storage-network

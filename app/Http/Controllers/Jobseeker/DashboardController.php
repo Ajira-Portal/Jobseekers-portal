@@ -10,10 +10,6 @@ use App\Models\JobApplication;
 use App\Models\Region;
 use App\Models\Shehia;
 use App\Models\Ward;
-use App\Models\WorkExperience;
-use App\Services\AjiraApiClient;
-use App\Services\SigningService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -145,6 +141,12 @@ class DashboardController extends Controller
 
     public function index()
     {
+        $user = Auth::user();
+        \App\Models\JobseekerProfile::firstOrCreate(
+            ['user_id' => $user->id],
+            ['resident_number' => $user->zan_id, 'phone' => $user->phone]
+        );
+
         $regions = Region::where('is_active', true)->orderBy('name')->get();
         $districts = District::where('is_active', true)->orderBy('name')->get();
         $wards = Ward::where('is_active', true)->orderBy('name')->get();
@@ -268,12 +270,15 @@ class DashboardController extends Controller
             abort(404, 'Attachment not found.');
         }
 
+        $name = $job->attachment_name ?: basename($job->attachment_path);
+        $headers = [
+            'Content-Type' => $job->attachment_mime ?: 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.addslashes($name).'"',
+        ];
+
         try {
             if (Storage::disk('s3_jobattachments')->exists($job->attachment_path)) {
-                return Storage::disk('s3_jobattachments')->download(
-                    $job->attachment_path,
-                    $job->attachment_name ?: basename($job->attachment_path)
-                );
+                return Storage::disk('s3_jobattachments')->response($job->attachment_path, $name, $headers);
             }
         } catch (\Exception $e) {
             Log::warning('S3 job attachment fetch failed: '.$e->getMessage());
@@ -283,10 +288,7 @@ class DashboardController extends Controller
             abort(404, 'Attachment not found.');
         }
 
-        return response()->download(
-            Storage::disk('local')->path($job->attachment_path),
-            $job->attachment_name ?: basename($job->attachment_path)
-        );
+        return response()->file(Storage::disk('local')->path($job->attachment_path), $headers);
     }
 
     public function apply(Request $request, $jobId)
@@ -322,10 +324,12 @@ class DashboardController extends Controller
             if ($request->hasFile('cover_letter')) {
                 $file = $request->file('cover_letter');
                 $filename = time().'_'.Auth::id().'_cover_letter.pdf';
-                if (config('filesystems.default') === 's3') {
-                    Storage::disk('s3_coverletter')->putFileAs('', $file, $filename);
-                } else {
-                    $file->move(public_path('uploads/cover_letters'), $filename);
+
+                if (! $this->storeCoverLetter($file, $filename)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Could not save your cover letter. Please try again.',
+                    ], 500);
                 }
                 $coverLetterPath = $filename;
             }
@@ -358,12 +362,38 @@ class DashboardController extends Controller
         }
     }
 
+    // S3 disks use throw=false, so a failed upload returns false; verify it and fall back to local storage.
+    private function storeCoverLetter($file, string $filename): bool
+    {
+        if (config('filesystems.default') === 's3') {
+            try {
+                if (Storage::disk('s3_coverletter')->putFileAs('', $file, $filename) !== false) {
+                    return true;
+                }
+            } catch (\Exception $e) {
+                Log::error('S3 cover letter upload error: '.$e->getMessage());
+            }
+            Log::warning('S3 cover letter upload failed, falling back to local storage');
+        }
+
+        try {
+            $file->move(public_path('uploads/cover_letters'), $filename);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Local cover letter save failed: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
     public function getMyApplications()
     {
         $applications = JobApplication::where('jobseeker_id', Auth::id())
             ->with(['job', 'job.employer'])
             ->orderBy('created_at', 'desc')
             ->get()
+            ->filter(fn ($app) => $app->job !== null)
             ->map(function ($app) {
                 return [
                     'id' => $app->id,
@@ -373,9 +403,10 @@ class DashboardController extends Controller
                     'status' => $app->status === 'pending' ? 'submitted' : $app->status,
                     'cover_letter' => $app->cover_letter,
                     'created_at' => $app->created_at->format('Y-m-d H:i:s'),
-                    'employer_name' => $app->job->employer->name,
+                    'employer_name' => $app->job->employer->name ?? '',
                 ];
-            });
+            })
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -397,221 +428,12 @@ class DashboardController extends Controller
 
         $job = $application->job;
         $application->delete();
-        $job->decrement('applications_count');
+        $job?->decrement('applications_count');
 
         return response()->json([
             'success' => true,
             'message' => 'Application withdrawn successfully!',
         ]);
-    }
-
-    /**
-     * Fetch resident details by ZANID using SigningService and AjiraApiClient
-     */
-    public function fetchZanId(Request $request, SigningService $signingService, AjiraApiClient $ajiraApiClient)
-    {
-        $validator = Validator::make($request->all(), [
-            'resident_number' => 'required|string|regex:/^[0-9]{9,}$/',
-        ], [
-            'resident_number.regex' => 'The ZANID Number must contain only numbers and be at least 9 digits long.',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $zanId = $request->input('resident_number');
-        $apiKey = config('services.ajira.token');
-        $innerPayload = [
-            'apiKey' => $apiKey,
-            'zanid' => $zanId,
-        ];
-        $innerPayloadJson = json_encode($innerPayload);
-
-        try {
-            $signature = $signingService->sign($innerPayloadJson);
-            $finalRequest = [
-                'payload' => $innerPayload,
-                'signature' => $signature,
-            ];
-            Log::info('ZANID Payload: '.json_encode($finalRequest));
-        } catch (\Exception $e) {
-            Log::error('ZANID Payload Signing Error: '.$e->getMessage(), ['zanid' => $zanId]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Internal configuration error: Unable to securely sign the payload.',
-            ], 500);
-        }
-
-        try {
-            $apiData = $ajiraApiClient->getZanID($finalRequest);
-            $payloadObj = $apiData['payload'] ?? null;
-
-            if ($payloadObj && isset($payloadObj['code'])) {
-                $code = $payloadObj['code'];
-                $msg = $payloadObj['msg'] ?? 'Unknown Error';
-
-                if ($code === 9000 && ! empty($payloadObj['data'])) {
-                    $data = $payloadObj['data'];
-
-                    $firstName = $data['PRSN_FIRST_NAME'] ?? '';
-                    $middleName = $data['PRSN_MIDLE_NAME'] ?? '';
-                    $lastName = $data['PRSN_LAST_NAME'] ?? '';
-                    $fullName = trim("{$firstName} {$middleName} {$lastName}");
-
-                    $gender = (strtoupper($data['PRSN_SEX'] ?? '') === 'FEMALE') ? 'female' : 'male';
-                    $dob = null;
-                    if (! empty($data['PRSN_BIRTH_DATE'])) {
-                        try {
-                            $dob = Carbon::createFromFormat('j-n-Y', $data['PRSN_BIRTH_DATE'])->format('Y-m-d');
-                        } catch (\Exception $e) {
-                            $dob = null;
-                        }
-                    }
-
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'ZANID details retrieved successfully.',
-                        'data' => [
-                            'resident_number' => $zanId,
-                            'name' => $fullName,
-                            'gender' => $gender,
-                            'date_of_birth' => $dob,
-                            'region_of_birth' => $data['PRSN_BIRTH_PLACE'] ?? null,
-                            'district_of_birth' => $data['PRSN_RES_DISTRICT'] ?? null,
-                            'shehia' => $data['PRSN_PLACE_SHEHIA'] ?? null,
-                            'nationality' => $data['PRSN_NATIONALITY_IND'] ?? 'Tanzanian',
-                            'raw' => $data,
-                        ],
-                    ]);
-                } elseif ($code === 9003) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'ZANID Not Found. Please check the number and try again.',
-                    ], 404);
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'ZANID verification service returned an error: '.$msg,
-                    ], 400);
-                }
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid response format from ZANID service.',
-            ], 500);
-
-        } catch (\Exception $e) {
-            Log::error('ZANID API Exception: '.$e->getMessage(), ['zanid' => $zanId]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to connect to ZANID service. Please try again later.',
-            ], 500);
-        }
-    }
-
-    public function showCompleteProfile()
-    {
-        return view('jobseeker.complete-profile');
-    }
-
-    public function completeProfile(Request $request)
-    {
-        try {
-            $user = Auth::user();
-
-            // Get or create profile
-            $profile = $user->personalInfo;
-            if (! $profile) {
-                $profile = new PersonalInfo;
-                $profile->user_id = $user->id;
-            }
-
-            $validator = Validator::make($request->all(), [
-                'name' => 'required|string|max:255',
-                'phone' => 'required|string|max:20',
-                'gender' => 'nullable|in:male,female,other',
-                'date_of_birth' => 'nullable|date|before:today',
-                'disability' => 'required|string|max:255',
-                'regions' => 'required|exists:regions,id',
-                'districts' => 'required|exists:districts,id',
-                'wards' => 'required|exists:wards,id',
-                'shehias' => 'required|exists:shehias,id',
-
-                'resume' => 'nullable|file|mimes:pdf,doc,docx|max:2048',
-                'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            // Update user name
-            $user->name = $request->name;
-            $user->save();
-
-            // Update profile
-            $profile->phone = $request->phone;
-            $profile->gender = $request->gender;
-            $profile->date_of_birth = $request->date_of_birth;
-
-            $profile->profile_completed = true;
-
-            // Handle resume upload
-            if ($request->hasFile('resume')) {
-                if ($profile->resume && file_exists(public_path('uploads/resumes/'.$profile->resume))) {
-                    @unlink(public_path('uploads/resumes/'.$profile->resume));
-                }
-                $file = $request->file('resume');
-                $filename = time().'_'.$user->id.'_resume.'.$file->getClientOriginalExtension();
-                if (config('filesystems.default') === 's3') {
-                    Storage::disk('s3_resume')->putFileAs('', $file, $filename);
-                } else {
-                    $file->move(public_path('uploads/resumes'), $filename);
-                }
-                $profile->resume = $filename;
-            }
-
-            // Handle profile image
-            if ($request->hasFile('profile_image')) {
-                if ($profile->profile_image && file_exists(public_path('uploads/profile_images/'.$profile->profile_image))) {
-                    @unlink(public_path('uploads/profile_images/'.$profile->profile_image));
-                }
-                $file = $request->file('profile_image');
-                $filename = time().'_'.$user->id.'_profile.'.$file->getClientOriginalExtension();
-                if (config('filesystems.default') === 's3') {
-                    Storage::disk('s3_profilephoto')->putFileAs('', $file, $filename);
-                } else {
-                    $file->move(public_path('uploads/profile_images'), $filename);
-                }
-                $profile->profile_image = $filename;
-            }
-
-            $profile->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Profile completed successfully! You can now apply for jobs.',
-                'profile_completed' => true,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error completing profile:', ['error' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error completing profile: '.$e->getMessage(),
-            ], 500);
-        }
     }
 
     // ============================================
@@ -772,175 +594,13 @@ class DashboardController extends Controller
         }
     }
 
-    // ============================================
-    // WORK EXPERIENCE CRUD
-    // ============================================
-
-    public function getWorkExperiences()
-    {
-        try {
-            $experiences = WorkExperience::where('user_id', Auth::id())
-                ->orderBy('start_date', 'desc')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'experiences' => $experiences,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error loading work experiences:', ['error' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error loading work experiences.',
-            ], 500);
-        }
-    }
-
-    public function getWorkExperience($id)
-    {
-        try {
-            $experience = WorkExperience::where('user_id', Auth::id())->findOrFail($id);
-
-            return response()->json([
-                'success' => true,
-                'experience' => $experience,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Work experience not found.',
-            ], 404);
-        }
-    }
-
-    public function addWorkExperience(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'company_name' => 'required|string|max:255',
-                'position' => 'required|string|max:255',
-                'location' => 'nullable|string|max:255',
-                'employment_type' => 'nullable|string|max:50',
-                'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after:start_date',
-                'is_current' => 'boolean',
-                'description' => 'nullable|string|max:500',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            $experience = WorkExperience::create([
-                'user_id' => Auth::id(),
-                'company_name' => $request->company_name,
-                'position' => $request->position,
-                'location' => $request->location,
-                'employment_type' => $request->employment_type,
-                'start_date' => $request->start_date,
-                'end_date' => $request->is_current ? null : $request->end_date,
-                'is_current' => $request->is_current ?? false,
-                'description' => $request->description,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Work experience added successfully!',
-                'experience' => $experience,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error adding work experience:', ['error' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error adding work experience: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function updateWorkExperience(Request $request, $id)
-    {
-        try {
-            $experience = WorkExperience::where('user_id', Auth::id())->findOrFail($id);
-
-            $validator = Validator::make($request->all(), [
-                'company_name' => 'required|string|max:255',
-                'position' => 'required|string|max:255',
-                'location' => 'nullable|string|max:255',
-                'employment_type' => 'nullable|string|max:50',
-                'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after:start_date',
-                'is_current' => 'boolean',
-                'description' => 'nullable|string|max:500',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            $experience->update([
-                'company_name' => $request->company_name,
-                'position' => $request->position,
-                'location' => $request->location,
-                'employment_type' => $request->employment_type,
-                'start_date' => $request->start_date,
-                'end_date' => $request->is_current ? null : $request->end_date,
-                'is_current' => $request->is_current ?? false,
-                'description' => $request->description,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Work experience updated successfully!',
-                'experience' => $experience,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error updating work experience:', ['error' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error updating work experience: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function deleteWorkExperience($id)
-    {
-        try {
-            $experience = WorkExperience::where('user_id', Auth::id())->findOrFail($id);
-            $experience->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Work experience deleted successfully!',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error deleting work experience:', ['error' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error deleting work experience: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
     /**
      * Get full profile for employer view
      */
     public function getFullProfile($userId)
     {
         try {
-            $user = User::with(['jobseekerProfile', 'education', 'workExperiences'])
+            $user = User::with(['jobseekerProfile', 'education'])
                 ->findOrFail($userId);
 
             $profile = $user->jobseekerProfile;
@@ -970,7 +630,6 @@ class DashboardController extends Controller
                         'website_url' => $profile->website_url,
                     ] : null,
                     'education' => $user->education,
-                    'work_experiences' => $user->workExperiences,
                 ],
             ]);
         } catch (\Exception $e) {

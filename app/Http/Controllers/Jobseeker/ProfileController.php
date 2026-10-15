@@ -10,10 +10,6 @@ use App\Models\Region;
 use App\Models\Shehia;
 use App\Models\Skill;
 use App\Models\Ward;
-use App\Models\WorkExperience;
-use App\Services\AjiraApiClient;
-use App\Services\SigningService;
-use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,11 +34,7 @@ class ProfileController extends Controller
     {
         $user = Auth::user();
 
-        // Get or create jobseeker profile
-        $profile = JobseekerProfile::firstOrCreate(
-            ['user_id' => $user->id],
-            ['user_id' => $user->id]
-        );
+        $profile = $this->getOrCreateProfile($user);
 
         // Get all regions for dropdown
         $regions = Region::where('is_active', true)->orderBy('name')->get();
@@ -59,7 +51,6 @@ class ProfileController extends Controller
         $educations = Education::where('user_id', $user->id)->orderBy('start_date', 'desc')->get();
         $skills = collect($this->getUserSkillsArray($user->id, $profile));
         $profile->skills = $skills->implode(', ');
-        $workExperiences = WorkExperience::where('user_id', $user->id)->orderBy('start_date', 'desc')->get();
 
         // Get child location data if selected
         $districts = collect();
@@ -94,120 +85,37 @@ class ProfileController extends Controller
             'shehias',
             'educations',
             'skills',
-            'workExperiences',
             'stats'
         ));
     }
 
     /**
-     * Fetch resident details by ZANID using SigningService and AjiraApiClient
+     * Get or create the jobseeker profile, pre-filled from the verified user record.
      */
-    public function fetchZanId(Request $request, SigningService $signingService, AjiraApiClient $ajiraApiClient)
+    private function getOrCreateProfile($user): JobseekerProfile
     {
-        $validator = Validator::make($request->all(), [
-            'resident_number' => 'required|string|regex:/^[0-9]{9,}$/',
-        ], [
-            'resident_number.regex' => 'The ZANID Number must contain only numbers and be at least 9 digits long.',
-        ]);
+        $profile = JobseekerProfile::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'resident_number' => $user->zan_id,
+                'phone' => $user->phone,
+            ]
+        );
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors(),
-            ], 422);
+        $dirty = false;
+        if (empty($profile->resident_number) && ! empty($user->zan_id)) {
+            $profile->resident_number = $user->zan_id;
+            $dirty = true;
+        }
+        if (empty($profile->phone) && ! empty($user->phone)) {
+            $profile->phone = $user->phone;
+            $dirty = true;
+        }
+        if ($dirty) {
+            $profile->save();
         }
 
-        $zanId = $request->input('resident_number');
-        $apiKey = config('services.ajira.token');
-        $innerPayload = [
-            'apiKey' => $apiKey,
-            'zanid' => $zanId,
-        ];
-        $innerPayloadJson = json_encode($innerPayload);
-
-        try {
-            $signature = $signingService->sign($innerPayloadJson);
-            $finalRequest = [
-                'payload' => $innerPayload,
-                'signature' => $signature,
-            ];
-            Log::info('ZANID Payload: '.json_encode($finalRequest));
-        } catch (\Exception $e) {
-            Log::error('ZANID Payload Signing Error: '.$e->getMessage(), ['zanid' => $zanId]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Internal configuration error: Unable to securely sign the payload.',
-            ], 500);
-        }
-
-        try {
-            $apiData = $ajiraApiClient->getZanID($finalRequest);
-            $payloadObj = $apiData['payload'] ?? null;
-
-            if ($payloadObj && isset($payloadObj['code'])) {
-                $code = $payloadObj['code'];
-                $msg = $payloadObj['msg'] ?? 'Unknown Error';
-
-                if ($code === 9000 && ! empty($payloadObj['data'])) {
-                    $data = $payloadObj['data'];
-
-                    $firstName = $data['PRSN_FIRST_NAME'] ?? '';
-                    $middleName = $data['PRSN_MIDLE_NAME'] ?? '';
-                    $lastName = $data['PRSN_LAST_NAME'] ?? '';
-                    $fullName = trim("{$firstName} {$middleName} {$lastName}");
-
-                    $gender = (strtoupper($data['PRSN_SEX'] ?? '') === 'FEMALE') ? 'female' : 'male';
-                    $dob = null;
-                    if (! empty($data['PRSN_BIRTH_DATE'])) {
-                        try {
-                            $dob = Carbon::createFromFormat('j-n-Y', $data['PRSN_BIRTH_DATE'])->format('Y-m-d');
-                        } catch (\Exception $e) {
-                            $dob = null;
-                        }
-                    }
-
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'ZANID details retrieved successfully.',
-                        'data' => [
-                            'resident_number' => $zanId,
-                            'name' => $fullName,
-                            'gender' => $gender,
-                            'date_of_birth' => $dob,
-                            'region_of_birth' => $data['PRSN_BIRTH_PLACE'] ?? null,
-                            'district_of_birth' => $data['PRSN_RES_DISTRICT'] ?? null,
-                            'shehia' => $data['PRSN_PLACE_SHEHIA'] ?? null,
-                            'nationality' => $data['PRSN_NATIONALITY_IND'] ?? 'Tanzanian',
-                            'raw' => $data,
-                        ],
-                    ]);
-                } elseif ($code === 9003) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'ZANID Not Found. Please check the number and try again.',
-                    ], 404);
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'ZANID verification service returned an error: '.$msg,
-                    ], 400);
-                }
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid response format from ZANID service.',
-            ], 500);
-
-        } catch (\Exception $e) {
-            Log::error('ZANID API Exception: '.$e->getMessage(), ['zanid' => $zanId]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to connect to ZANID service. Please try again later.',
-            ], 500);
-        }
+        return $profile;
     }
 
     /**
@@ -265,7 +173,6 @@ class ProfileController extends Controller
             // Validation
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
-                'resident_number' => 'required|string|max:100',
                 'phone' => 'required|string|max:20',
                 'disability_description' => 'nullable|string|max:500',
                 'gender' => 'nullable|in:male,female,other',
@@ -312,10 +219,7 @@ class ProfileController extends Controller
 
             // Get or create jobseeker profile
             try {
-                $profile = JobseekerProfile::firstOrCreate(
-                    ['user_id' => $user->id],
-                    ['user_id' => $user->id]
-                );
+                $profile = $this->getOrCreateProfile($user);
             } catch (\Exception $e) {
                 Log::error('Failed to get/create JobseekerProfile: '.$e->getMessage());
 
@@ -338,7 +242,7 @@ class ProfileController extends Controller
 
             // Update jobseeker info
             $updateData = [
-                'resident_number' => $request->input('resident_number') ?: $profile->resident_number,
+                'resident_number' => $user->zan_id ?: $profile->resident_number,
                 'phone' => $request->input('phone') ?: $profile->phone,
                 'disability' => $disability,
                 'disability_description' => $disability === 'yes' ? $request->input('disability_description') : null,
@@ -356,54 +260,34 @@ class ProfileController extends Controller
 
             // Handle resume upload
             if ($request->hasFile('resume')) {
-                try {
-                    $resumeDisk = config('filesystems.default') === 's3' ? 's3_resume' : 'public';
-                    if ($profile->resume) {
-                        try {
-                            Storage::disk($resumeDisk)->delete($profile->resume);
-                            Storage::disk('public')->delete('resumes/'.$profile->resume);
-                            @unlink(storage_path('app/private/public/resumes/'.$profile->resume));
-                        } catch (\Exception $e) {
-                            Log::warning('Could not delete existing resume: '.$e->getMessage());
-                        }
-                    }
-                    $resume = $request->file('resume');
-                    $resumeName = time().'_'.$user->id.'_resume.'.$resume->getClientOriginalExtension();
-                    if ($resumeDisk === 's3_resume') {
-                        Storage::disk('s3_resume')->putFileAs('', $resume, $resumeName);
-                    } else {
-                        Storage::disk('public')->putFileAs('resumes', $resume, $resumeName);
-                    }
-                    $updateData['resume'] = $resumeName;
-                } catch (\Exception $e) {
-                    Log::error('Resume upload error: '.$e->getMessage());
+                $resume = $request->file('resume');
+                $resumeName = time().'_'.$user->id.'_resume.'.$resume->getClientOriginalExtension();
+
+                if (! $this->storeProfileFile($resume, $resumeName, 's3_resume', 'resumes')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Could not save the resume. Please try again.',
+                    ], 500);
                 }
+
+                $this->deleteProfileFile($profile->resume, 's3_resume', 'resumes');
+                $updateData['resume'] = $resumeName;
             }
 
             // Handle profile image upload
             if ($request->hasFile('profile_image')) {
-                try {
-                    $photoDisk = config('filesystems.default') === 's3' ? 's3_profilephoto' : 'public';
-                    if ($profile->profile_image) {
-                        try {
-                            Storage::disk($photoDisk)->delete($profile->profile_image);
-                            Storage::disk('public')->delete('profile_images/'.$profile->profile_image);
-                            @unlink(storage_path('app/private/public/profile_images/'.$profile->profile_image));
-                        } catch (\Exception $e) {
-                            Log::warning('Could not delete existing profile image: '.$e->getMessage());
-                        }
-                    }
-                    $image = $request->file('profile_image');
-                    $imageName = time().'_'.$user->id.'_profile.'.$image->getClientOriginalExtension();
-                    if ($photoDisk === 's3_profilephoto') {
-                        Storage::disk('s3_profilephoto')->putFileAs('', $image, $imageName);
-                    } else {
-                        Storage::disk('public')->putFileAs('profile_images', $image, $imageName);
-                    }
-                    $updateData['profile_image'] = $imageName;
-                } catch (\Exception $e) {
-                    Log::error('Profile image upload error: '.$e->getMessage());
+                $image = $request->file('profile_image');
+                $imageName = time().'_'.$user->id.'_profile.'.$image->getClientOriginalExtension();
+
+                if (! $this->storeProfileFile($image, $imageName, 's3_profilephoto', 'profile_images')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Could not save the profile photo. Please try again.',
+                    ], 500);
                 }
+
+                $this->deleteProfileFile($profile->profile_image, 's3_profilephoto', 'profile_images');
+                $updateData['profile_image'] = $imageName;
             }
 
             // Persist only columns existing in current schema.
@@ -1068,6 +952,39 @@ class ProfileController extends Controller
     /**
      * Check if profile is complete
      */
+    private function storeProfileFile($file, string $name, string $s3Disk, string $folder): bool
+    {
+        // The S3 disks are configured with throw=false, so failures return false instead of raising.
+        if (config('filesystems.default') === 's3') {
+            try {
+                if (Storage::disk($s3Disk)->putFileAs('', $file, $name) !== false) {
+                    return true;
+                }
+            } catch (\Exception $e) {
+                Log::error('S3 upload error ('.$s3Disk.'): '.$e->getMessage());
+            }
+            Log::warning('S3 upload failed, falling back to public disk', ['disk' => $s3Disk]);
+        }
+
+        return Storage::disk('public')->putFileAs($folder, $file, $name) !== false;
+    }
+
+    private function deleteProfileFile(?string $name, string $s3Disk, string $folder): void
+    {
+        if (! $name) {
+            return;
+        }
+
+        try {
+            Storage::disk('public')->delete($folder.'/'.$name);
+            if (config('filesystems.default') === 's3') {
+                Storage::disk($s3Disk)->delete($name);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not delete old profile file: '.$e->getMessage());
+        }
+    }
+
     private function checkProfileCompletion($user): void
     {
         $profile = $user->jobseekerProfile;

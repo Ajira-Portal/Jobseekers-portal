@@ -329,6 +329,7 @@ class ZanIdService
             'name' => $name,
             'date_of_birth' => $dateOfBirth,
             'gender' => $gender,
+            'place_of_birth' => $this->pick($response, ['PRSN_BIRTH_PLACE', 'place_of_birth', 'placeOfBirth', 'birth_place', 'birthPlace']),
             'phone' => $this->pick($response, ['PRSN_KIN_PHONE', 'PRSN_PHONE', 'phone', 'phone_number', 'phoneNumber', 'mobile', 'msisdn']),
             'raw' => $response,
         ];

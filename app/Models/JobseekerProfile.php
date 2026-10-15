@@ -34,20 +34,40 @@ class JobseekerProfile extends Model
 
         'skills',
         'is_completed',
-        'profile_completed',
     ];
 
     protected $casts = [
         'date_of_birth' => 'date',
         'passport_expiry_date' => 'date',
         'is_completed' => 'boolean',
-        'profile_completed' => 'boolean',
         'experience_years' => 'integer',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    // `profile_completed` is kept as an alias of the single `is_completed` column.
+    public function getProfileCompletedAttribute(): bool
+    {
+        return (bool) $this->is_completed;
+    }
+
+    public function setProfileCompletedAttribute($value): void
+    {
+        $this->attributes['is_completed'] = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+    }
+
+    // The column is boolean; the app and forms use 'yes' / 'no'.
+    public function getDisabilityAttribute($value): string
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'yes' : 'no';
+    }
+
+    public function setDisabilityAttribute($value): void
+    {
+        $this->attributes['disability'] = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
     }
 
     public function region()
@@ -73,11 +93,6 @@ class JobseekerProfile extends Model
     public function educations()
     {
         return $this->hasMany(Education::class);
-    }
-
-    public function workExperiences()
-    {
-        return $this->hasMany(WorkExperience::class);
     }
 
     public function getSkillsArrayAttribute()

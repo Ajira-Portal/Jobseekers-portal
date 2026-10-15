@@ -42,7 +42,7 @@ Route::get('/locations/shehias', [ProfileController::class, 'getShehias'])->name
 
 Route::get('/language/switch/{locale}', function (Request $request, string $locale) {
     if (! in_array($locale, ['sw', 'en'], true)) {
-        $locale = 'sw';
+        $locale = 'en';
     }
 
     $request->session()->put('locale', $locale);
@@ -163,7 +163,6 @@ Route::middleware(['auth', 'prevent.back.history', 'isJobseeker'])->prefix('jobs
     Route::get('/profile/status', [ProfileController::class, 'status'])->name('profile.status');
     Route::get('/profile/resume', [ProfileController::class, 'viewResume'])->name('profile.resume.view');
     Route::get('/profile/profile-image', [ProfileController::class, 'viewProfileImage'])->name('profile.image.view');
-    Route::post('/profile/fetch-zanid', [ProfileController::class, 'fetchZanId'])->name('profile.fetch-zanid');
 
     // AJAX Routes
     Route::get('/get-districts', [ProfileController::class, 'getDistricts'])->name('get-districts');
@@ -181,12 +180,6 @@ Route::middleware(['auth', 'prevent.back.history', 'isJobseeker'])->prefix('jobs
     Route::post('/skills', [ProfileController::class, 'storeSkill'])->name('skills.store');
     Route::post('/skills/save', [ProfileController::class, 'saveSkills'])->name('skills.save');
     Route::delete('/skills/{id}', [ProfileController::class, 'deleteSkill'])->name('skills.delete');
-
-    // Work Experience Routes
-    Route::get('/work-experiences', [ProfileController::class, 'getWorkExperiences'])->name('work-experiences');
-    Route::post('/work-experience', [ProfileController::class, 'storeWorkExperience'])->name('work-experience.store');
-    Route::put('/work-experience/{id}', [ProfileController::class, 'updateWorkExperience'])->name('work-experience.update');
-    Route::delete('/work-experience/{id}', [ProfileController::class, 'deleteWorkExperience'])->name('work-experience.delete');
 
 });
 
