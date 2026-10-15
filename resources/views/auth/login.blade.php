@@ -535,13 +535,13 @@ html {
                     <div class="invalid-feedback" id="passwordError"></div>
                 </div>
 
-                <div class="form-options">
+                <!-- <div class="form-options">
                     <label class="checkbox-custom">
                         <input type="checkbox" name="remember" id="remember">
                         <label for="remember">Remember Me</label>
                     </label>
                     <a href="{{ route('password.request') }}">Forgot Password?</a>
-                </div>
+                </div> -->
 
                 <button type="submit" class="btn-login" id="loginBtn">
                     <span class="btn-content">
