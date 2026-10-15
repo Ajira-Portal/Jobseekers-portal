@@ -498,7 +498,7 @@ html {
            <!-- Brand with Logo -->
 <div class="brand">
     <a href="{{ url('/') }}" class="logo-container d-inline-block" aria-label="Go to welcome page">
-       <img src="{{ asset('images/emblem.png') }}" alt="Logo" class="logo-image" style="height: 65px;">
+       <img src="{{ asset('images/emblem.png') }}" alt="Logo" class="logo-image" style="height: 110px;">
     </a>
     <h4 class="mt-2 fw-bold text-dark">Jobseekers Portal<span></span></h4>
     <p class="text-muted">Sign in to your account</p>
