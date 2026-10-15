@@ -33,7 +33,7 @@ services:
       - app
 
     ports:
-      - "443:443"
+      - "9092:9092"
 
     volumes:
       - laravel-storage:/var/www/html/storage:ro
@@ -44,7 +44,6 @@ services:
 
     networks:
       - jobseekers-network
-
 
   db:
     image: postgres:17-alpine
@@ -70,12 +69,10 @@ services:
     networks:
       - jobseekers-network
 
-
 volumes:
   postgres-data:
   laravel-storage:
   vite-build:
-
 
 networks:
   jobseekers-network:
