@@ -20,8 +20,7 @@ services:
       - vite-build:/var/www/html/public/build
 
     networks:
-      #- jobseekers-network
-      - default
+      - jobseekers-network
       - gateway
 
   # nginx:
@@ -77,6 +76,7 @@ volumes:
 networks:
   jobseekers-network:
     driver: bridge
-    gateway:
+
+  gateway:
     external: true
     name: vijana-gateway-network
