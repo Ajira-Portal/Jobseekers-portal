@@ -26,22 +26,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.nginx
-    image: vijana-nginx:latest
+    image: jobseekers-portal-nginx:latest
     restart: unless-stopped
     depends_on:
-      - jobportal-app
-      - admin-app
+      - app
     ports:
       - "443:443"
     volumes:
+      - laravel-storage:/var/www/html/storage:ro
+      - ./storage/certificate:/var/www/html/storage/certificate:ro
+      - vite-build:/var/www/html/public/build:ro
       - /etc/ssl/uwezeshaji/vijanasmz_fullchain.crt:/etc/nginx/ssl/server.crt:ro
       - /etc/ssl/uwezeshaji/vijanasmz.go.tz.key:/etc/nginx/ssl/server.key:ro
-      - jobportal-storage:/var/www/jobportal/storage:ro
-      - jobportal-vite:/var/www/jobportal/public/build:ro
-      - admin-storage:/var/www/admin/storage:ro
-      - admin-vite:/var/www/admin/public/build:ro
     networks:
-      - vijana-network
+      - jobseekers-network
 
   db:
     image: postgres:17-alpine
