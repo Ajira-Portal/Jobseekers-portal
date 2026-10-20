@@ -19,7 +19,7 @@ RUN npm run build
 
 
 # Stage 2: PHP/Laravel application
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.4-fpm-alpine
 
 WORKDIR /var/www/html
 

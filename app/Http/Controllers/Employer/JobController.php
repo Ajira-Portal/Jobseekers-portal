@@ -269,11 +269,11 @@ class JobController extends Controller
     {
         $job = Job::where('employer_id', Auth::id())->findOrFail($jobId);
         $applications = $job->applications()
-            ->with(['jobseeker.jobseekerProfile', 'jobseeker.personalInfo'])
+            ->with(['jobseeker.jobseekerProfile'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($app) {
-                $profileSource = $app->jobseeker->jobseekerProfile ?: $app->jobseeker->personalInfo;
+                $profileSource = $app->jobseeker->jobseekerProfile;
 
                 $resumePath = $this->findApplicantFilePath($profileSource->resume ?? null, 'resume');
                 $resumeUrl = $resumePath ? route('employer.applications.resume', ['id' => $app->id]) : null;
@@ -281,10 +281,7 @@ class JobController extends Controller
                 $profileImagePath = $this->findApplicantFilePath($profileSource->profile_image ?? null, 'profile_image');
                 $profileImageUrl = $profileImagePath ? route('employer.applications.profile-image', ['id' => $app->id]) : null;
 
-                $coverLetterUrl = null;
-                if (! empty($app->cover_letter) && file_exists(public_path('uploads/cover_letters/'.$app->cover_letter))) {
-                    $coverLetterUrl = asset('uploads/cover_letters/'.$app->cover_letter);
-                }
+                $coverLetterUrl = $this->coverLetterUrl($app->cover_letter);
 
                 return [
                     'id' => $app->id,
@@ -321,7 +318,7 @@ class JobController extends Controller
 
         $applications = $job->applications()
             ->where('status', $status)
-            ->with(['jobseeker.jobseekerProfile', 'jobseeker.personalInfo'])
+            ->with(['jobseeker.jobseekerProfile'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -343,7 +340,7 @@ class JobController extends Controller
             ]);
 
             foreach ($applications as $application) {
-                $profileSource = $application->jobseeker->jobseekerProfile ?: $application->jobseeker->personalInfo;
+                $profileSource = $application->jobseeker->jobseekerProfile;
 
                 fputcsv($handle, [
                     $application->id,
@@ -370,9 +367,7 @@ class JobController extends Controller
             'jobseeker.jobseekerProfile.district',
             'jobseeker.jobseekerProfile.ward',
             'jobseeker.jobseekerProfile.shehia',
-            'jobseeker.personalInfo',
             'jobseeker.education',
-            // 'jobseeker.workExperiences',
         ])->findOrFail($applicationId);
 
         if ($application->job->employer_id !== Auth::id()) {
@@ -384,8 +379,7 @@ class JobController extends Controller
 
         $user = $application->jobseeker;
         $profile = $user->jobseekerProfile;
-        $personalInfo = $user->personalInfo;
-        $profileSource = $profile ?: $personalInfo;
+        $profileSource = $user->jobseekerProfile;
 
         $resumePath = $this->findApplicantFilePath($profileSource->resume ?? null, 'resume');
         $resumeUrl = $resumePath ? route('employer.applications.resume', ['id' => $application->id]) : null;
@@ -435,16 +429,6 @@ class JobController extends Controller
                             'duration' => $education->duration,
                         ];
                     })->values(),
-                    // 'work_experiences' => $user->workExperiences->map(function ($experience) {
-                    //     return [
-                    //         'company_name' => $experience->company_name,
-                    //         'position' => $experience->position,
-                    //         'location' => $experience->location,
-                    //         'employment_type_label' => $experience->employment_type_label,
-                    //         'duration' => $experience->duration,
-                    //         'description' => $experience->description,
-                    //     ];
-                    // })->values(),
                 ],
             ],
         ]);
@@ -465,14 +449,13 @@ class JobController extends Controller
         $application = JobApplication::with([
             'job',
             'jobseeker.jobseekerProfile',
-            'jobseeker.personalInfo',
         ])->findOrFail($applicationId);
 
         if ($application->job->employer_id !== Auth::id()) {
             abort(403, 'Unauthorized');
         }
 
-        $profileSource = $application->jobseeker->jobseekerProfile ?: $application->jobseeker->personalInfo;
+        $profileSource = $application->jobseeker->jobseekerProfile;
         if (! $profileSource) {
             abort(404, 'Profile not found');
         }
@@ -495,11 +478,33 @@ class JobController extends Controller
 
         $path = $this->findApplicantFilePath($fileName, $type);
 
-        if (! $path) {
+        if (! $path || str_starts_with($path, 's3://')) {
             abort(404, 'File not found');
         }
 
         return response()->file($path);
+    }
+
+    private function coverLetterUrl($fileName)
+    {
+        if (empty($fileName)) {
+            return null;
+        }
+
+        $safeFileName = basename($fileName);
+        if (file_exists(public_path('uploads/cover_letters/'.$safeFileName))) {
+            return asset('uploads/cover_letters/'.$safeFileName);
+        }
+
+        try {
+            if (Storage::disk('s3_coverletter')->exists($safeFileName)) {
+                return url('/storage/cover_letters/'.$safeFileName);
+            }
+        } catch (\Exception $e) {
+            Log::warning('S3 cover letter lookup failed: '.$e->getMessage());
+        }
+
+        return null;
     }
 
     private function findApplicantFilePath($fileName, $type)
@@ -529,6 +534,16 @@ class JobController extends Controller
             if (file_exists($candidate) && is_file($candidate)) {
                 return $candidate;
             }
+        }
+
+        // Not on local disk: report an S3 marker when the file exists remotely (served by serveApplicantFile).
+        try {
+            $diskName = $type === 'resume' ? 's3_resume' : 's3_profilephoto';
+            if (Storage::disk($diskName)->exists($safeFileName)) {
+                return 's3://'.$safeFileName;
+            }
+        } catch (\Exception $e) {
+            Log::warning("S3 applicant file lookup failed ($type): ".$e->getMessage());
         }
 
         return null;
@@ -605,12 +620,27 @@ class JobController extends Controller
 
     private function storeJobAttachment($file): array
     {
-        $disk = config('filesystems.default') === 's3' ? 's3_jobattachments' : 'local';
         $safeOriginalName = basename((string) $file->getClientOriginalName());
         $storedName = now()->format('YmdHis').'_'.Auth::id().'_'.Str::random(8).'_'.$safeOriginalName;
-        $path = $disk === 's3_jobattachments'
-            ? $file->storeAs('', $storedName, 's3_jobattachments')
-            : $file->storeAs('job_attachments', $storedName, 'local');
+        $path = false;
+
+        try {
+            // S3 disks use throw=false, so a failed upload returns false instead of throwing.
+            $path = $file->storeAs('', $storedName, 's3_jobattachments');
+        } catch (\Throwable $e) {
+            Log::warning('S3 job attachment upload failed: '.$e->getMessage());
+        }
+
+        if (! $path) {
+            Log::warning('Job attachment S3 upload failed; falling back to local storage.');
+            $path = $file->storeAs('job_attachments', $storedName, 'local');
+        }
+
+        if (! $path) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'attachment' => 'The attachment could not be saved. Please try again.',
+            ]);
+        }
 
         return [
             'attachment_path' => $path,
@@ -623,8 +653,12 @@ class JobController extends Controller
     private function deleteJobAttachment(Job $job): void
     {
         if (! empty($job->attachment_path)) {
-            if (Storage::disk('s3_jobattachments')->exists($job->attachment_path)) {
-                Storage::disk('s3_jobattachments')->delete($job->attachment_path);
+            try {
+                if (Storage::disk('s3_jobattachments')->exists($job->attachment_path)) {
+                    Storage::disk('s3_jobattachments')->delete($job->attachment_path);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('S3 job attachment delete failed: '.$e->getMessage());
             }
             if (Storage::disk('local')->exists($job->attachment_path)) {
                 Storage::disk('local')->delete($job->attachment_path);

@@ -65,7 +65,6 @@ class JobApplication extends Model
                 'profile_image_url' => $profile->profile_image_url,
                 'resume_url' => $profile->resume_url,
                 'education' => $user->education,
-                'work_experiences' => $user->workExperiences,
             ] : null
         ];
     }

@@ -1714,6 +1714,7 @@
                         <div class="card-body-custom">
                             <div class="job-meta">
                                 <span><i class="fas fa-map-marker-alt"></i> ${job.location}</span>
+                                <span><i class="fas fa-hourglass-end"></i> Deadline: ${job.application_deadline ? new Date(job.application_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No deadline'}</span>
                                 <span><i class="fas fa-clock"></i> ${formatEmploymentType(job.employment_type)}</span>
                                 ${job.salary_range ? `<span><i class="fas fa-dollar-sign"></i> ${job.salary_range}</span>` : ''}
                                 <span><i class="fas fa-calendar-alt"></i> Posted: ${date}</span>

@@ -8,19 +8,7 @@ import './jobseeker/education/deleteEducation.js';
 import './jobseeker/education/loadEducation.js';
 import './jobseeker/education/showEducation.js';
 
-
-
-import './jobseeker/personalinformation/saveInfo.js';
-import './jobseeker/personalinformation/validateInfo.js';
-
-
-//Skills
-import './jobseeker/skills/addSkill.js';
-import './jobseeker/skills/skillDropdown.js';
-import './jobseeker/skills/removeSkill.js';
-import './jobseeker/skills/updateSkill.js';
 import './jobseeker/api.js';
-import './jobseeker/complete-profile.js';
 import './jobseeker/dashboard.js';
 
 import './admin/api.js';

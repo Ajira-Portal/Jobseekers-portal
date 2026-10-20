@@ -151,6 +151,7 @@ class AuthController extends Controller
                 'name' => $result['data']['name'] ?? '',
                 'date_of_birth' => $result['data']['date_of_birth'] ?? null,
                 'gender' => $result['data']['gender'] ?? null,
+                'place_of_birth' => $result['data']['place_of_birth'] ?? null,
                 'phone' => $result['data']['phone'] ?? null,
             ]
         ]);
@@ -219,11 +220,6 @@ class AuthController extends Controller
                 $profile->resident_number = $user->zan_id;
                 $profile->gender = !empty($citizen['gender']) ? strtolower($citizen['gender']) : null;
                 $profile->date_of_birth = $citizen['date_of_birth'] ?? null;
-                // These columns are NOT NULL in the schema - default to empty strings.
-                $profile->region = '';
-                $profile->district = '';
-                $profile->ward = '';
-                $profile->shehia = '';
                 $profile->save();
                 Log::info('[AuthController] JobseekerProfile created successfully', ['profile_id' => $profile->id]);
             } catch (\Throwable $e) {
@@ -277,9 +273,6 @@ class AuthController extends Controller
         $user = User::where('zan_id', $input)
             ->orWhere('email', $input)
             ->orWhereHas('jobseekerProfile', function ($query) use ($input) {
-                $query->where('resident_number', $input);
-            })
-            ->orWhereHas('personalInfo', function ($query) use ($input) {
                 $query->where('resident_number', $input);
             })
             ->first();

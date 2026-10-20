@@ -7,11 +7,13 @@
   @vite(['resources/css/app.css', 'resources/js/app.js'])
     <title>Login - JobPortal</title>
     <link rel="icon" type="image/png" href="{{ asset('images/emblem.png') }}">
+    <link rel="preload" href="{{ asset('webfonts/fa-solid-900.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ asset('webfonts/fa-regular-400.woff2') }}" as="font" type="font/woff2" crossorigin>
     
      <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet">
     <link href="{{asset('css/all.min.css')}}" rel="stylesheet">
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="{{ asset('css/fonts.css') }}" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -496,7 +498,7 @@ html {
            <!-- Brand with Logo -->
 <div class="brand">
     <a href="{{ url('/') }}" class="logo-container d-inline-block" aria-label="Go to welcome page">
-       <img src="{{ asset('images/emblem.png') }}" alt="Logo" class="logo-image" style="height: 65px;">
+       <img src="{{ asset('images/emblem.png') }}" alt="Logo" class="logo-image" style="height: 110px;">
     </a>
     <h4 class="mt-2 fw-bold text-dark">Jobseekers Portal<span></span></h4>
     <p class="text-muted">Sign in to your account</p>
@@ -527,19 +529,19 @@ html {
                         <input type="password" class="form-control" id="password" name="password" 
                                placeholder="Enter your password" required>
                         <button class="password-toggle" type="button" id="togglePassword" tabindex="-1">
-                            <i class="fas fa-eye"></i>
+                            
                         </button>
                     </div>
                     <div class="invalid-feedback" id="passwordError"></div>
                 </div>
 
-                <div class="form-options">
+                <!-- <div class="form-options">
                     <label class="checkbox-custom">
                         <input type="checkbox" name="remember" id="remember">
                         <label for="remember">Remember Me</label>
                     </label>
                     <a href="{{ route('password.request') }}">Forgot Password?</a>
-                </div>
+                </div> -->
 
                 <button type="submit" class="btn-login" id="loginBtn">
                     <span class="btn-content">

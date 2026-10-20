@@ -7,9 +7,11 @@
      @vite(['resources/css/app.css', 'resources/js/app.js'])
     <title>Register - JobPortal</title>
     <link rel="icon" type="image/png" href="{{ asset('images/emblem.png') }}">
+    <link rel="preload" href="{{ asset('webfonts/fa-solid-900.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ asset('webfonts/fa-regular-400.woff2') }}" as="font" type="font/woff2" crossorigin>
     <link href="{{asset('css/bootstrap.min.css')}}" rel="stylesheet">
     <link href="{{asset('css/all.min.css')}}" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="{{ asset('css/fonts.css') }}" rel="stylesheet">
     <link  href="{{asset('css/style.css')}}"  rel="stylesheet">
 </head>
 <body>

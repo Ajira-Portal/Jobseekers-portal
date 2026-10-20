@@ -20,10 +20,10 @@ const DICTIONARIES = {
 
 function activeLocale() {
   const lang = (document.documentElement.lang || '').toLowerCase();
-  if (lang.startsWith('en')) {
-    return 'en';
+  if (lang.startsWith('sw')) {
+    return 'sw';
   }
-  return 'sw';
+  return 'en';
 }
 
 function preserveSpacing(original, translated) {
@@ -99,7 +99,7 @@ function translateAttrs(root, dict) {
 
 function applyTranslationsTo(root) {
   const locale = activeLocale();
-  const dict = DICTIONARIES[locale] || DICTIONARIES.sw;
+  const dict = DICTIONARIES[locale] || DICTIONARIES.en;
   walkText(root, dict);
   translateAttrs(root, dict);
 }
@@ -123,7 +123,7 @@ function observe() {
 
 window.__t = function __t(text) {
   const locale = activeLocale();
-  const dict = DICTIONARIES[locale] || DICTIONARIES.sw;
+  const dict = DICTIONARIES[locale] || DICTIONARIES.en;
   return (translateValue(String(text || ''), dict) || '').trim();
 };
 

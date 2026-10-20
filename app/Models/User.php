@@ -58,22 +58,10 @@ class User extends Authenticatable
         return $this->hasOne(JobseekerProfile::class);
     }
 
-    // Legacy Personal Info Profile
-    public function personalInfo(): HasOne
-    {
-        return $this->hasOne(PersonalInfo::class);
-    }
-
     // Education
     public function education(): HasMany
     {
         return $this->hasMany(Education::class);
-    }
-
-    // Work Experience
-    public function workExperiences(): HasMany
-    {
-        return $this->hasMany(WorkExperience::class);
     }
 
     // ============================================
@@ -174,8 +162,7 @@ class User extends Authenticatable
             'experience_years' => 10,
             'resume' => 15,
             'profile_image' => 10,
-            'education' => 5, // Has at least one education
-            'work_experiences' => 5, // Has at least one work experience
+            'education' => 10, // Has at least one education
         ];
 
         $completed = 0;
@@ -193,9 +180,6 @@ class User extends Authenticatable
         
         // Check education
         if ($this->education()->count() > 0) $completed += $fields['education'];
-        
-        // Check work experience
-        if ($this->workExperiences()->count() > 0) $completed += $fields['work_experiences'];
 
         return min($completed, 100);
     }
