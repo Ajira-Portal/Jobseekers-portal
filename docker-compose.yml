@@ -1,6 +1,7 @@
 services:
 
   app:
+    container_name: jobportal-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -23,26 +24,26 @@ services:
       - default
       - gateway
 
-  nginx:
-    build:
-      context: .
-      dockerfile: Dockerfile.nginx
-    image: jobseekers-portal-nginx:latest
-    restart: unless-stopped
-    depends_on:
-      - app
-    ports:
-      - "443:443"
-    volumes:
-      - laravel-storage:/var/www/html/storage:ro
-      - ./storage/certificate:/var/www/html/storage/certificate:ro
-      - vite-build:/var/www/html/public/build:ro
-      - /etc/ssl/uwezeshaji/vijanasmz_fullchain.crt:/etc/nginx/ssl/server.crt:ro
-      - /etc/ssl/uwezeshaji/vijanasmz.go.tz.key:/etc/nginx/ssl/server.key:ro
-    networks:
-      - jobseekers-network
-      - default
-      - gateway
+  # nginx:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.nginx
+  #   image: jobseekers-portal-nginx:latest
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - app
+  #   ports:
+  #     - "443:443"
+  #   volumes:
+  #     - laravel-storage:/var/www/html/storage:ro
+  #     - ./storage/certificate:/var/www/html/storage/certificate:ro
+  #     - vite-build:/var/www/html/public/build:ro
+  #     - /etc/ssl/uwezeshaji/vijanasmz_fullchain.crt:/etc/nginx/ssl/server.crt:ro
+  #     - /etc/ssl/uwezeshaji/vijanasmz.go.tz.key:/etc/nginx/ssl/server.key:ro
+  #   networks:
+  #     - jobseekers-network
+  #     - default
+  #     - gateway
 
   db:
     image: postgres:17-alpine
@@ -69,10 +70,6 @@ services:
       - jobseekers-network
 
 volumes:
-  jobportal-storage:
-    external: true
-  jobportal-vite:
-    external: true
   postgres-data:
   laravel-storage:
   vite-build:
@@ -80,6 +77,6 @@ volumes:
 networks:
   jobseekers-network:
     driver: bridge
-  gateway:
+    gateway:
     external: true
     name: vijana-gateway-network
