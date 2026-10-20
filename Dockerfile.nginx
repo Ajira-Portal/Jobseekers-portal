@@ -1,3 +1,23 @@
+# Stage 1: Build Vite frontend assets
+FROM node:24-alpine AS frontend
+
+WORKDIR /var/www/html
+
+# Copy package files first for caching
+COPY package*.json ./
+
+# Install Node dependencies
+RUN npm ci
+
+# Copy files required by Vite
+COPY resources ./resources
+COPY vite.config.* ./
+COPY public ./public  
+
+# Build production assets
+RUN npm run build
+
+
 # Stage 2: Nginx with built assets
 FROM nginx:1.27-alpine
 
