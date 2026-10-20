@@ -33,7 +33,7 @@ services:
       - app
 
     ports:
-      - "9092:9092"
+      - "443:443"
 
     volumes:
       - laravel-storage:/var/www/html/storage:ro
