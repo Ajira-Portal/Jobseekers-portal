@@ -20,7 +20,7 @@ services:
       - vite-build:/var/www/html/public/build
 
     networks:
-      - jobseekers-network
+      #- jobseekers-network
       - default
       - gateway
 
