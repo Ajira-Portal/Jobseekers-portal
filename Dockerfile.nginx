@@ -1,14 +1,17 @@
-
+# Stage 2: Nginx with built assets
 FROM nginx:1.27-alpine
 
 WORKDIR /var/www/html
 
+# Copy Laravel public directory (static assets)
 COPY public ./public
 
+# Copy Vite production assets from frontend build stage
+COPY --from=frontend /var/www/html/public/build ./public/build
+
+# Copy Nginx configuration
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 80 443
 
-CMD ["nginx", "-g", "daemon off;"]
-
-
+CMD ["nginx", "-g", "daemon off;"
