@@ -15,11 +15,12 @@ services:
         condition: service_healthy
 
     volumes:
-      - laravel-storage:/var/www/html/storage
+      - jobportal-storage:/var/www/html/storage
       - ./storage/certificate:/var/www/html/storage/certificate:ro
-      - vite-build:/var/www/html/public/build
+      - jobportal-vite:/var/www/html/public/build
 
     networks:
+      - default
       - jobseekers-network
       - gateway
 
@@ -69,14 +70,19 @@ services:
       - jobseekers-network
 
 volumes:
+  jobportal-storage:
+    name: jobportal-storage
+  jobportal-vite:
+    name: jobportal-vite
   postgres-data:
   laravel-storage:
   vite-build:
 
 networks:
+  default:
+    driver: bridge
   jobseekers-network:
     driver: bridge
-
   gateway:
     external: true
     name: vijana-gateway-network
