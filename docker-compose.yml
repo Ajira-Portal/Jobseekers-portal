@@ -67,6 +67,7 @@ services:
       start_period: 10s
 
     networks:
+      - gateway
       - jobseekers-network
 
 volumes:
